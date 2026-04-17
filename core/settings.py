@@ -118,11 +118,16 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 LOGIN_URL = '/'
 
-# Google OAuth — stored in Admin, not hardcoded
+# Google OAuth — reads from env vars directly (no DB entry needed)
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
         'AUTH_PARAMS': {'access_type': 'online'},
+        'APP': {
+            'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
+            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', ''),
+            'key': '',
+        }
     }
 }
 SOCIALACCOUNT_AUTO_SIGNUP = True
