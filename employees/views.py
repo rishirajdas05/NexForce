@@ -724,7 +724,6 @@ def api_data_create(request):
 
 @login_required
 def admin_panel_view(request):
-    from django.contrib.auth.models import User as DjangoUser
     stats = {
         'employees': Employee.objects.filter(is_active=True).count(),
         'departments': Department.objects.count(),
@@ -740,7 +739,6 @@ def admin_panel_view(request):
         {'id': 'leaves', 'label': 'Leave Requests', 'icon': 'fa-calendar-minus'},
         {'id': 'payroll', 'label': 'Payroll', 'icon': 'fa-money-bill'},
         {'id': 'reviews', 'label': 'Reviews', 'icon': 'fa-star'},
-        {'id': 'users', 'label': 'Users', 'icon': 'fa-shield'},
     ]
     context = {
         'stats': stats,
@@ -751,7 +749,7 @@ def admin_panel_view(request):
         'all_leaves': LeaveRequest.objects.select_related('employee', 'employee__department').order_by('-applied_on'),
         'all_payrolls': Payroll.objects.select_related('employee').order_by('-year', '-month')[:50],
         'all_reviews': PerformanceReview.objects.select_related('employee').order_by('-review_date')[:50],
-        'all_users': DjangoUser.objects.all().order_by('-date_joined'),
+
     }
     return render(request, 'employees/admin_panel.html', context)
 

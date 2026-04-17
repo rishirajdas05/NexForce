@@ -331,39 +331,6 @@
   </div>
 </div>
 
-<!-- USERS TABLE -->
-<div id="section-users" class="admin-section" style="display:none;">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">System Users</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>User</th><th>Email</th><th>Joined</th><th>Last Login</th><th>Staff</th><th>Active</th></tr>
-        </thead>
-        <tbody>
-          {% for u in all_users %}
-          <tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div class="emp-avatar sm">{{ u.first_name|first|upper }}{{ u.last_name|first|upper }}</div>
-                <strong>{{ u.get_full_name|default:u.username }}</strong>
-              </div>
-            </td>
-            <td style="font-size:12px;color:var(--text2);">{{ u.email }}</td>
-            <td style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">{{ u.date_joined|date:"M d, Y" }}</td>
-            <td style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">{{ u.last_login|date:"M d, Y"|default:"Never" }}</td>
-            <td>{% if u.is_staff %}<span class="badge badge-blue" style="font-size:9px;">Staff</span>{% else %}<span style="font-size:10px;color:var(--text3);">—</span>{% endif %}</td>
-            <td>{% if u.is_active %}<span class="badge badge-green" style="font-size:9px;">Active</span>{% else %}<span class="badge badge-red" style="font-size:9px;">Inactive</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- ── MODALS ────────────────────────────────────────────────────── -->
 
 <!-- Edit Employee Modal -->
@@ -504,7 +471,7 @@
 {% block extra_scripts %}
 <script>
 // ── Section switching ─────────────────────────────────────────────
-const sections = ['employees','departments','attendance','leaves','payroll','reviews','users'];
+const sections = ['employees','departments','attendance','leaves','payroll','reviews'];
 
 function switchSection(id) {
   sections.forEach(s => {
