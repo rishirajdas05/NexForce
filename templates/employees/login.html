@@ -417,8 +417,8 @@ body {
     <h2>Sign in</h2>
     <p class="sub">Use your work email or sign in with Google.</p>
 
-    {% if form.errors %}
-    <div class="error-msg">That email or password didn't match. Try again.</div>
+    {% if error %}
+    <div class="error-msg">Email or password is incorrect. Try again.</div>
     {% endif %}
 
     <a href="/accounts/google/login/" class="google-btn">
@@ -437,7 +437,7 @@ body {
       <div class="divider-line"></div>
     </div>
 
-    <form method="POST" action="{% url 'account_login' %}">
+    <form method="POST" action="/">
       {% csrf_token %}
       <div class="field">
         <label>Email</label>
