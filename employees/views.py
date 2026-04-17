@@ -17,7 +17,33 @@ from ml.engine import (anomaly_detector, performance_predictor,
 def login_page(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
-    return render(request, 'employees/login.html')
+
+    error = False
+    if request.method == 'POST':
+        from django.contrib.auth import authenticate, login as auth_login
+        from django.contrib.auth.models import User as AuthUser
+
+        email = request.POST.get('login', '').strip()
+        password = request.POST.get('password', '').strip()
+        user = None
+
+        # Find by email
+        try:
+            u = AuthUser.objects.get(email=email)
+            user = authenticate(request, username=u.username, password=password)
+        except AuthUser.DoesNotExist:
+            user = authenticate(request, username=email, password=password)
+        except AuthUser.MultipleObjectsReturned:
+            u = AuthUser.objects.filter(email=email).first()
+            user = authenticate(request, username=u.username, password=password)
+
+        if user is not None:
+            auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            return redirect('dashboard')
+        else:
+            error = True
+
+    return render(request, 'employees/login.html', {'error': error})
 
 
 def signup_page(request):
