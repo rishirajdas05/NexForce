@@ -1083,29 +1083,21 @@ def setup_view(request):
     except Exception as e:
         log.append(f"❌ Site error: {e}")
 
-    # Create Google Social App if credentials exist
+    # Google OAuth — using APP config in settings.py via env vars
+    # Delete any DB entries to avoid MultipleObjectsReturned conflict
     try:
         from allauth.socialaccount.models import SocialApp
         google_id = os.environ.get('GOOGLE_CLIENT_ID')
-        google_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
-        if google_id and google_secret:
-            # Delete ALL existing google apps to avoid MultipleObjectsReturned
+        if google_id:
             deleted = SocialApp.objects.filter(provider='google').delete()
-            log.append(f"🗑️ Deleted existing Google apps: {deleted}")
-            # Create fresh one
-            app = SocialApp.objects.create(
-                provider='google',
-                name='Google',
-                client_id=google_id,
-                secret=google_secret,
-            )
-            site = Site.objects.first()
-            app.sites.add(site)
-            log.append("✅ Google OAuth configured fresh")
+            if deleted[0] > 0:
+                log.append(f"🗑️ Deleted {deleted[0]} DB Google app(s) — using env vars instead")
+            else:
+                log.append("✅ No duplicate Google apps in DB — credentials loaded from env vars")
         else:
-            log.append("⚠️ GOOGLE_CLIENT_ID/SECRET not set in environment")
+            log.append("⚠️ GOOGLE_CLIENT_ID not set in Render environment variables")
     except Exception as e:
-        log.append(f"❌ Google OAuth error: {e}")
+        log.append(f"❌ Google OAuth cleanup error: {e}")
 
     # Run seed
     try:

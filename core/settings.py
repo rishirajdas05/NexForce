@@ -121,14 +121,25 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 LOGIN_URL = '/'
 
-# Google OAuth — credentials stored in DB via /setup/ URL
-# Do NOT put APP here — it causes MultipleObjectsReturned with DB entries
+# Google OAuth
+# Using SOCIALACCOUNT_APPS to avoid MultipleObjectsReturned
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
         'AUTH_PARAMS': {'access_type': 'online'},
     }
 }
+
+# Only add APP config if credentials exist in env
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    SOCIALACCOUNT_PROVIDERS['google']['APP'] = {
+        'client_id': GOOGLE_CLIENT_ID,
+        'secret': GOOGLE_CLIENT_SECRET,
+        'key': '',
+    }
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
 REST_FRAMEWORK = {
