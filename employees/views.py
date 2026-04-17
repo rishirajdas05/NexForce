@@ -1089,21 +1089,19 @@ def setup_view(request):
         google_id = os.environ.get('GOOGLE_CLIENT_ID')
         google_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
         if google_id and google_secret:
-            if not SocialApp.objects.filter(provider='google').exists():
-                app = SocialApp.objects.create(
-                    provider='google',
-                    name='Google',
-                    client_id=google_id,
-                    secret=google_secret,
-                )
-                site = Site.objects.first()
-                app.sites.add(site)
-                log.append("✅ Google OAuth configured")
-            else:
-                app = SocialApp.objects.filter(provider='google').first()
-                app.sites.clear()
-                app.sites.add(Site.objects.first())
-                log.append("✅ Google OAuth site updated")
+            # Delete ALL existing google apps to avoid MultipleObjectsReturned
+            deleted = SocialApp.objects.filter(provider='google').delete()
+            log.append(f"🗑️ Deleted existing Google apps: {deleted}")
+            # Create fresh one
+            app = SocialApp.objects.create(
+                provider='google',
+                name='Google',
+                client_id=google_id,
+                secret=google_secret,
+            )
+            site = Site.objects.first()
+            app.sites.add(site)
+            log.append("✅ Google OAuth configured fresh")
         else:
             log.append("⚠️ GOOGLE_CLIENT_ID/SECRET not set in environment")
     except Exception as e:
@@ -1111,14 +1109,13 @@ def setup_view(request):
 
     # Run seed
     try:
-        from django.contrib.sites.models import Site as S
-        dept_count = Department.objects.count()
-        if dept_count == 0:
-            from django.core.management import call_command
+        from django.core.management import call_command
+        emp_count = Employee.objects.count()
+        if emp_count == 0:
             call_command('seed_demo')
-            log.append("✅ Demo data seeded")
+            log.append(f"✅ Demo data seeded — {Employee.objects.count()} employees created")
         else:
-            log.append(f"ℹ️ Data already exists ({dept_count} departments)")
+            log.append(f"ℹ️ Employees already exist ({emp_count} employees)")
     except Exception as e:
         log.append(f"❌ Seed error: {e}")
 
