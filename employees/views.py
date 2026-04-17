@@ -1045,3 +1045,92 @@ def notifications_view(request):
         'system_notifications': [],
     }
     return render(request, 'employees/notifications.html', context)
+
+
+def setup_view(request):
+    """
+    One-time setup URL for Render deployment.
+    Visit /setup/ after deploying to create admin and configure site.
+    Disabled after first use via SETUP_DONE env var.
+    """
+    import os
+    from django.http import HttpResponse
+    from django.contrib.sites.models import Site
+
+    if os.environ.get('SETUP_DONE') == 'true':
+        return HttpResponse("Setup already done. Remove SETUP_DONE env var to re-run.", status=403)
+
+    log = []
+
+    # Create superuser
+    try:
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser('admin', 'admin@nexforce.com', 'admin123')
+            log.append("✅ Admin created — username: admin / password: admin123")
+        else:
+            log.append("ℹ️ Admin already exists")
+    except Exception as e:
+        log.append(f"❌ Admin error: {e}")
+
+    # Fix site domain
+    try:
+        site = Site.objects.first()
+        host = request.get_host().split(':')[0]
+        site.domain = host
+        site.name = 'NexForce EMS'
+        site.save()
+        log.append(f"✅ Site domain set to: {host}")
+    except Exception as e:
+        log.append(f"❌ Site error: {e}")
+
+    # Create Google Social App if credentials exist
+    try:
+        from allauth.socialaccount.models import SocialApp
+        google_id = os.environ.get('GOOGLE_CLIENT_ID')
+        google_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+        if google_id and google_secret:
+            if not SocialApp.objects.filter(provider='google').exists():
+                app = SocialApp.objects.create(
+                    provider='google',
+                    name='Google',
+                    client_id=google_id,
+                    secret=google_secret,
+                )
+                site = Site.objects.first()
+                app.sites.add(site)
+                log.append("✅ Google OAuth configured")
+            else:
+                app = SocialApp.objects.filter(provider='google').first()
+                app.sites.clear()
+                app.sites.add(Site.objects.first())
+                log.append("✅ Google OAuth site updated")
+        else:
+            log.append("⚠️ GOOGLE_CLIENT_ID/SECRET not set in environment")
+    except Exception as e:
+        log.append(f"❌ Google OAuth error: {e}")
+
+    # Run seed
+    try:
+        from django.contrib.sites.models import Site as S
+        dept_count = Department.objects.count()
+        if dept_count == 0:
+            from django.core.management import call_command
+            call_command('seed_demo')
+            log.append("✅ Demo data seeded")
+        else:
+            log.append(f"ℹ️ Data already exists ({dept_count} departments)")
+    except Exception as e:
+        log.append(f"❌ Seed error: {e}")
+
+    log.append("")
+    log.append("⚠️  IMPORTANT: Add SETUP_DONE=true in Render Environment Variables to disable this URL.")
+    log.append("Then visit /admin/ to log in with admin / admin123")
+
+    html = "<pre style='font-family:monospace;padding:20px;background:#111;color:#eee;min-height:100vh;'>"
+    html += "<h2 style='color:#6c63ff;'>NexForce EMS — Setup</h2>"
+    html += "\n".join(log)
+    html += f"\n\n<a href='/admin/' style='color:#6c63ff;'>→ Go to Admin Panel</a>"
+    html += f"\n<a href='/' style='color:#6c63ff;'>→ Go to Login Page</a>"
+    html += "</pre>"
+
+    return HttpResponse(html)

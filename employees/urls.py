@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/payroll/<int:pk>/mark-paid/', views.api_payroll_mark_paid, name='api_payroll_mark_paid'),
     path('api/payroll/generate/', views.api_payroll_generate, name='api_payroll_generate'),
     path('api/reports/<str:report_type>/', views.api_report, name='api_report'),
+    path('setup/', views.setup_view, name='setup'),
     path('calendar/', views.calendar_view, name='calendar'),
     path('profile/', views.profile_view, name='profile'),
     path('search/', views.search_view, name='search'),
