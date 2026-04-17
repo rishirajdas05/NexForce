@@ -1062,11 +1062,34 @@ def setup_view(request):
 
     # Create superuser
     try:
+        from allauth.account.models import EmailAddress
         if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser('admin', 'admin@nexforce.com', 'admin123')
+            admin = User.objects.create_superuser('admin', 'admin@nexforce.com', 'admin123')
             log.append("✅ Admin created — username: admin / password: admin123")
         else:
+            admin = User.objects.get(username='admin')
             log.append("ℹ️ Admin already exists")
+
+        # Ensure EmailAddress record exists for email login
+        email_obj, created = EmailAddress.objects.get_or_create(
+            user=admin,
+            email='admin@nexforce.com',
+            defaults={'primary': True, 'verified': True}
+        )
+        if not email_obj.verified:
+            email_obj.verified = True
+            email_obj.primary = True
+            email_obj.save()
+        log.append(f"✅ Admin email confirmed for login ({'created' if created else 'already exists'})")
+
+        # Fix all existing users' email addresses
+        for user in User.objects.filter(email__isnull=False).exclude(email=''):
+            EmailAddress.objects.get_or_create(
+                user=user,
+                email=user.email,
+                defaults={'primary': True, 'verified': True}
+            )
+        log.append("✅ All user emails confirmed")
     except Exception as e:
         log.append(f"❌ Admin error: {e}")
 
