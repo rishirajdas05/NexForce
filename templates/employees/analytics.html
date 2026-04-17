@@ -1,0 +1,220 @@
+{% extends "employees/base.html" %}
+{% block title %}Analytics — NexForce EMS{% endblock %}
+{% block page_title %}Analytics & ML Intelligence{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+  <div style="font-size:13px;color:var(--text3);">Real-time ML-driven workforce analytics</div>
+  <button class="btn btn-primary btn-sm" onclick="refreshAnalytics()">
+    <i class="fa fa-rotate-right"></i> Refresh
+  </button>
+</div>
+
+<!-- Top KPI Strip -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+  <div class="card" style="text-align:center;padding:16px;">
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">30-Day Attendance</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;letter-spacing:-1px;color:{% if attendance_rate >= 80 %}var(--green){% elif attendance_rate >= 60 %}var(--yellow){% else %}var(--red){% endif %};">{{ attendance_rate }}%</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;">
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Avg Salary</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;letter-spacing:-1px;color:var(--text);">₹{{ salary_stats.avg|floatformat:0 }}</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;">
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">ML Anomalies</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;letter-spacing:-1px;color:{% if total_anomalies > 0 %}var(--red){% else %}var(--green){% endif %};">{{ total_anomalies }}</div>
+  </div>
+  <div class="card" style="text-align:center;padding:16px;">
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Salary Range</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;letter-spacing:-1px;color:var(--text);">₹{{ salary_stats.min|floatformat:0 }} – ₹{{ salary_stats.max|floatformat:0 }}</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+  <!-- Risk Distribution -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-shield-halved" style="color:var(--accent);margin-right:6px;"></i>Attrition Risk</div>
+      <span class="badge badge-blue">ML Model</span>
+    </div>
+    <canvas id="riskChart" height="160"></canvas>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px;" id="risk-legend"></div>
+  </div>
+
+  <!-- Performance Distribution -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-star" style="color:var(--yellow);margin-right:6px;"></i>Performance Distribution</div>
+    </div>
+    <canvas id="perfChart" height="160"></canvas>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;">
+  <!-- Department Chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-building" style="color:var(--cyan);margin-right:6px;"></i>Department Analytics</div>
+      <span class="badge badge-gray" id="dept-status">Loading...</span>
+    </div>
+    <canvas id="deptChart" height="120"></canvas>
+  </div>
+
+  <!-- Top Skills -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-code" style="color:var(--green);margin-right:6px;"></i>Top Skills</div>
+    </div>
+    {% for skill, count in top_skills %}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span class="skill-tag">{{ skill }}</span>
+      <div style="display:flex;align-items:center;gap:8px;flex:1;margin-left:10px;">
+        <div class="progress-bar" style="flex:1;">
+          <div class="progress-fill" style="width:{% widthratio count total_employees 100 %}%;background:var(--accent);"></div>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text3);width:20px;text-align:right;">{{ count }}</span>
+      </div>
+    </div>
+    {% empty %}
+    <p style="color:var(--text3);font-size:13px;">No skill data available.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Department Table -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <div class="card-title">Department Intelligence Report</div>
+  </div>
+  <div class="table-wrap">
+    <table id="dept-table">
+      <thead>
+        <tr>
+          <th>Department</th><th>Headcount</th><th>Avg Salary</th>
+          <th>Avg Performance</th><th>High Performers</th><th>At-Risk</th><th>Avg Risk</th>
+        </tr>
+      </thead>
+      <tbody id="dept-tbody">
+        <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;"><div class="spinner"></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ML Model Overview -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa fa-brain" style="color:var(--accent);margin-right:6px;"></i>ML Model Overview</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
+    {% for model in ml_models %}
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">{{ model.name }}</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:var(--green);margin-bottom:5px;">Active</div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;">{{ model.desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const riskData = {{ risk_distribution|safe }};
+const perfData = {{ perf_distribution|safe }};
+const totalEmployees = {{ total_employees }};
+
+const ml_models = [
+  {name:'Anomaly Detector', desc:'Z-score attendance analysis'},
+  {name:'Performance Predictor', desc:'Weighted multi-factor scoring'},
+  {name:'Attrition Analyzer', desc:'Flight risk heuristics'},
+  {name:'Salary Fairness', desc:'Gini + Z-score gap detection'},
+  {name:'Wellness Score', desc:'Composite wellbeing index'},
+];
+
+// Risk donut
+const riskColors = { Low:'#22c55e', Medium:'#eab308', High:'#f97316', Critical:'#ef4444' };
+new Chart(document.getElementById('riskChart').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(riskData),
+    datasets: [{ data: Object.values(riskData), backgroundColor: Object.keys(riskData).map(k => riskColors[k]+'bb'), borderColor: Object.keys(riskData).map(k => riskColors[k]), borderWidth: 2 }]
+  },
+  options: { responsive: true, cutout: '65%', plugins: { legend: { display: false }, tooltip: { backgroundColor:'#13151c', borderColor:'#1f2430', borderWidth:1, titleColor:'#e8eaf0', bodyColor:'#8891a8' } } }
+});
+
+const legendEl = document.getElementById('risk-legend');
+Object.entries(riskData).forEach(([label, count]) => {
+  legendEl.innerHTML += `<div style="text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 6px;">
+    <div style="width:8px;height:8px;border-radius:50%;background:${riskColors[label]};margin:0 auto 5px;"></div>
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;">${label}</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:${riskColors[label]};">${count}</div>
+  </div>`;
+});
+
+// Performance donut
+const perfColors = ['#22c55e','#6c63ff','#eab308','#ef4444'];
+new Chart(document.getElementById('perfChart').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(perfData),
+    datasets: [{ data: Object.values(perfData), backgroundColor: perfColors.map(c => c+'bb'), borderColor: perfColors, borderWidth: 2 }]
+  },
+  options: { responsive: true, cutout: '65%', plugins: { legend: { position:'right', labels:{ color:'#8891a8', font:{family:'JetBrains Mono',size:10}, padding:10 } }, tooltip: { backgroundColor:'#13151c', borderColor:'#1f2430', borderWidth:1, titleColor:'#e8eaf0', bodyColor:'#8891a8' } } }
+});
+
+// Load department data
+function loadDeptAnalytics() {
+  fetch('/api/analytics/departments/')
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('dept-status').textContent = `${data.departments.length} departments`;
+    document.getElementById('dept-status').className = 'badge badge-green';
+
+    document.getElementById('dept-tbody').innerHTML = data.departments.map(d => `
+      <tr>
+        <td><strong>${d.name}</strong> <span style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">${d.code||''}</span></td>
+        <td style="font-family:var(--font-mono);font-size:12px;">${d.headcount}</td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">₹${(d.avg_salary||0).toLocaleString()}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:${d.avg_performance>=70?'var(--green)':d.avg_performance>=50?'var(--yellow)':'var(--red)'};">${(d.avg_performance||0).toFixed(1)}</span>
+            <div class="progress-bar" style="flex:1;min-width:50px;"><div class="progress-fill" style="width:${d.avg_performance||0}%;background:var(--accent);"></div></div>
+          </div>
+        </td>
+        <td style="font-family:var(--font-mono);font-size:12px;color:var(--green);">${d.high_performer_count||0}</td>
+        <td style="font-family:var(--font-mono);font-size:12px;color:${(d.high_risk_count||0)>0?'var(--red)':'var(--green)'};">${d.high_risk_count||0}</td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:${(d.avg_risk||0)>=50?'var(--orange)':'var(--text2)'};">${(d.avg_risk||0).toFixed(1)}</td>
+      </tr>`).join('');
+
+    new Chart(document.getElementById('deptChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: data.departments.map(d => d.name),
+        datasets: [
+          { label: 'Headcount', data: data.departments.map(d => d.headcount), backgroundColor: 'rgba(6,182,212,0.5)', borderColor: 'rgba(6,182,212,1)', borderWidth: 1, borderRadius: 5 },
+          { label: 'High Performers', data: data.departments.map(d => d.high_performer_count||0), backgroundColor: 'rgba(16,185,129,0.5)', borderColor: 'rgba(16,185,129,1)', borderWidth: 1, borderRadius: 5 },
+          { label: 'At Risk', data: data.departments.map(d => d.high_risk_count||0), backgroundColor: 'rgba(239,68,68,0.5)', borderColor: 'rgba(239,68,68,1)', borderWidth: 1, borderRadius: 5 },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color:'#8891a8', font:{family:'JetBrains Mono',size:10} } }, tooltip: { backgroundColor:'#13151c', borderColor:'#1f2430', borderWidth:1, titleColor:'#e8eaf0', bodyColor:'#8891a8' } },
+        scales: {
+          x: { grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'#555e72', font:{family:'JetBrains Mono',size:10}} },
+          y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#555e72', font:{family:'JetBrains Mono',size:10}} }
+        }
+      }
+    });
+  });
+}
+
+function refreshAnalytics() {
+  showToast('Refreshing ML data...', 'info');
+  loadDeptAnalytics();
+}
+
+loadDeptAnalytics();
+</script>
+{% endblock %}

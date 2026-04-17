@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Signing in with Google...</title>
+</head>
+<body>
+<form id="autoform" method="post" action="">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+</form>
+<script>
+  document.getElementById('autoform').submit();
+</script>
+</body>
+</html>

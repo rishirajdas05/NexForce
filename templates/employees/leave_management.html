@@ -1,0 +1,141 @@
+{% extends "employees/base.html" %}
+{% block title %}Leave Management — NexForce EMS{% endblock %}
+{% block page_title %}Leave Management{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div style="font-size:13px;color:var(--text3);">Review and manage employee leave requests</div>
+  <span class="badge badge-yellow" style="font-size:12px;padding:6px 12px;">{{ leaves|length }} Total Requests</span>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">All Leave Requests</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="filterLeaves('all')">All</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterLeaves('pending')">Pending</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterLeaves('approved')">Approved</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Leave Type</th>
+          <th>Duration</th>
+          <th>Days</th>
+          <th>Reason</th>
+          <th>Applied</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="leave-tbody">
+        {% for leave in leaves %}
+        <tr id="leave-row-{{ leave.pk }}" data-status="{{ leave.status }}">
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="emp-avatar sm">{{ leave.employee.first_name.0 }}{{ leave.employee.last_name.0 }}</div>
+              <div class="emp-info">
+                <strong>
+                  <a href="{% url 'employee_detail' leave.employee.pk %}" style="color:var(--text);">
+                    {{ leave.employee.full_name }}
+                  </a>
+                </strong>
+                <span>{{ leave.employee.department.name|default:"—" }}</span>
+              </div>
+            </div>
+          </td>
+          <td><span class="badge badge-blue">{{ leave.get_leave_type_display }}</span></td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">
+            {{ leave.start_date|date:"M d" }} to {{ leave.end_date|date:"M d, Y" }}
+          </td>
+          <td style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);">
+            {{ leave.days_count }}<span style="font-size:10px;font-family:var(--font-mono);font-weight:400;color:var(--text3);">d</span>
+          </td>
+          <td style="font-size:12px;color:var(--text2);max-width:200px;">
+            <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ leave.reason }}">
+              {{ leave.reason|truncatechars:40 }}
+            </div>
+          </td>
+          <td style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">
+            {{ leave.applied_on|date:"M d, Y" }}
+          </td>
+          <td id="status-badge-{{ leave.pk }}">
+            <span class="badge {% if leave.status == 'approved' %}badge-green{% elif leave.status == 'rejected' %}badge-red{% elif leave.status == 'pending' %}badge-yellow{% else %}badge-gray{% endif %}">
+              {{ leave.status }}
+            </span>
+          </td>
+          <td>
+            {% if leave.status == 'pending' %}
+            <div style="display:flex;gap:5px;">
+              <button class="btn btn-success btn-sm" onclick="leaveAction({{ leave.pk }}, 'approve')">
+                <i class="fa fa-check"></i> Approve
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="leaveAction({{ leave.pk }}, 'reject')">
+                <i class="fa fa-xmark"></i> Reject
+              </button>
+            </div>
+            {% elif leave.status == 'approved' %}
+            <span style="font-size:11px;color:var(--text3);">
+              {% if leave.approved_by %}
+                Approved by {{ leave.approved_by.get_full_name|default:leave.approved_by.username }}
+              {% else %}
+                Approved
+              {% endif %}
+            </span>
+            {% else %}
+            <span style="font-size:11px;color:var(--text3);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align:center;padding:40px;color:var(--text3);">
+            <i class="fa fa-calendar-check" style="font-size:32px;margin-bottom:12px;display:block;opacity:0.3;"></i>
+            No leave requests found
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function leaveAction(leaveId, action) {
+  if (!confirm(`${action === 'approve' ? 'Approve' : 'Reject'} this leave request?`)) return;
+
+  fetch(`/api/leave/${leaveId}/action/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: JSON.stringify({ action })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const colorMap = { approved: 'badge-green', rejected: 'badge-red', pending: 'badge-yellow' };
+      document.getElementById(`status-badge-${leaveId}`).innerHTML =
+        `<span class="badge ${colorMap[data.status] || 'badge-gray'}">${data.status}</span>`;
+      document.getElementById(`leave-row-${leaveId}`).setAttribute('data-status', data.status);
+      document.querySelector(`#leave-row-${leaveId} td:last-child`).innerHTML =
+        `<span style="font-size:11px;color:var(--text3);">${data.status === 'approved' ? 'Approved' : 'Rejected'}</span>`;
+      showToast(`Leave ${data.status}`, data.status === 'approved' ? 'success' : 'error');
+    }
+  })
+  .catch(() => showToast('Action failed', 'error'));
+}
+
+function filterLeaves(status) {
+  document.querySelectorAll('#leave-tbody tr[data-status]').forEach(row => {
+    row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,351 @@
+{% extends "employees/base.html" %}
+{% block title %}Dashboard — NexForce EMS{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+.stat-value {
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-size: 38px !important;
+  font-weight: 700 !important;
+  letter-spacing: -2px !important;
+  font-variant-numeric: tabular-nums;
+  line-height: 1 !important;
+}
+.stat-change { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: -0.2px; }
+.quick-action {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 16px 12px; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; cursor: pointer; transition: all 0.18s; text-decoration: none; color: var(--text2);
+  font-size: 12px; text-align: center;
+}
+.quick-action:hover { border-color: var(--accent); color: var(--accent3); background: rgba(108,99,255,0.06); }
+.quick-action i { font-size: 20px; }
+.heatmap-cell {
+  width: 12px; height: 12px; border-radius: 2px; cursor: pointer; transition: transform 0.1s;
+}
+.heatmap-cell:hover { transform: scale(1.4); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Live Header Bar -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div>
+    <div style="font-size:13px;color:var(--text3);" id="live-date">Loading...</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-ghost btn-sm" onclick="runBulkMLQuick()">
+      <i class="fa fa-brain"></i> Run ML Update
+    </button>
+    <a href="{% url 'attendance' %}" class="btn btn-primary btn-sm">
+      <i class="fa fa-calendar-check"></i> Mark Attendance
+    </a>
+  </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+  <div class="stat-card purple">
+    <div class="stat-icon"><i class="fa fa-users"></i></div>
+    <div class="stat-value">{{ total_employees }}</div>
+    <div class="stat-label">Total Employees</div>
+    <div class="stat-change up"><i class="fa fa-arrow-up"></i> {{ active_employees }} active</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon"><i class="fa fa-circle-check"></i></div>
+    <div class="stat-value">{{ present_today }}</div>
+    <div class="stat-label">Present Today</div>
+    <div class="stat-change down"><i class="fa fa-arrow-down"></i> {{ absent_today }} absent</div>
+  </div>
+  <div class="stat-card yellow">
+    <div class="stat-icon"><i class="fa fa-calendar-xmark"></i></div>
+    <div class="stat-value">{{ on_leave }}</div>
+    <div class="stat-label">On Leave</div>
+    <div class="stat-change" style="color:var(--text3);">{{ pending_leaves }} pending requests</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-icon"><i class="fa fa-triangle-exclamation"></i></div>
+    <div class="stat-value">{{ high_risk_employees }}</div>
+    <div class="stat-label">High Attrition Risk</div>
+    <div class="stat-change" style="color:var(--text3);">ML-detected signals</div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;">
+  <a href="{% url 'employee_list' %}" class="quick-action">
+    <i class="fa fa-users"></i> Employees
+  </a>
+  <a href="{% url 'attendance' %}" class="quick-action">
+    <i class="fa fa-calendar-check"></i> Attendance
+  </a>
+  <a href="{% url 'leave_management' %}" class="quick-action">
+    <i class="fa fa-calendar-minus"></i> Leave
+  </a>
+  <a href="{% url 'analytics' %}" class="quick-action">
+    <i class="fa fa-chart-line"></i> Analytics
+  </a>
+  <a href="{% url 'admin_panel' %}" class="quick-action">
+    <i class="fa fa-screwdriver-wrench"></i> Admin
+  </a>
+  <a href="{% url 'settings' %}" class="quick-action">
+    <i class="fa fa-gear"></i> Settings
+  </a>
+</div>
+
+<div class="grid-2-1" style="margin-bottom:16px;">
+  <!-- Attendance Chart -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Attendance Trend</div>
+        <div class="card-subtitle">Last 7 days</div>
+      </div>
+      <span class="badge badge-green"><span class="anomaly-dot" style="background:var(--green);animation:none;"></span>Live</span>
+    </div>
+    <canvas id="attendanceChart" height="100"></canvas>
+  </div>
+
+  <!-- Dept Breakdown -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Departments</div>
+      <div class="card-subtitle">Headcount</div>
+    </div>
+    {% for dept in dept_stats %}
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span style="font-size:12.5px;color:var(--text2);">{{ dept.name }}</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);">{{ dept.emp_count }}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:{% if total_employees %}{% widthratio dept.emp_count total_employees 100 %}%{% else %}0%{% endif %};background:var(--accent);"></div>
+      </div>
+    </div>
+    {% empty %}
+    <p style="color:var(--text3);font-size:13px;">No departments yet.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:16px;">
+  <!-- Employment Type Donut -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Employment Types</div>
+      <div class="card-subtitle">Breakdown</div>
+    </div>
+    <canvas id="typeChart" height="140"></canvas>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">AI Intelligence</div>
+      <span class="badge badge-blue">ML Active</span>
+    </div>
+    <div class="ai-insight">
+      <p><strong style="color:var(--text);">Attendance Alert:</strong><br>
+        ML monitoring {{ total_employees }} employees. {{ high_risk_employees }} flagged with elevated attrition risk.
+      </p>
+    </div>
+    <div class="ai-insight">
+      <p><strong style="color:var(--text);">Today:</strong><br>
+        {{ present_today }} present, {{ absent_today }} absent.
+        Rate: <strong style="color:var(--accent3);">{% if total_employees %}{% widthratio present_today total_employees 100 %}%{% else %}N/A{% endif %}</strong>
+      </p>
+    </div>
+    <hr class="divider">
+    <a href="{% url 'analytics' %}" class="btn btn-primary btn-sm" style="width:100%;justify-content:center;">
+      <i class="fa fa-chart-line"></i> View Full Analytics
+    </a>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:16px;">
+  <!-- Top Performers -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-trophy" style="color:var(--yellow);margin-right:6px;"></i>Top Performers</div>
+    </div>
+    {% for emp in top_performers %}
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);width:16px;">{{ forloop.counter }}</div>
+      <div class="emp-avatar sm">{{ emp.first_name.0 }}{{ emp.last_name.0 }}</div>
+      <div class="emp-info" style="flex:1;">
+        <strong><a href="{% url 'employee_detail' emp.pk %}" style="color:var(--text);">{{ emp.full_name }}</a></strong>
+        <span>{{ emp.designation }}</span>
+      </div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:var(--green);letter-spacing:-1px;">{{ emp.performance_score|floatformat:0 }}</div>
+    </div>
+    {% empty %}
+    <p style="color:var(--text3);font-size:13px;">Run ML analysis to see top performers.</p>
+    {% endfor %}
+  </div>
+
+  <!-- High Risk Employees -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-triangle-exclamation" style="color:var(--red);margin-right:6px;"></i>Attrition Risk</div>
+    </div>
+    {% for emp in high_risk_list %}
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div class="emp-avatar sm">{{ emp.first_name.0 }}{{ emp.last_name.0 }}</div>
+      <div class="emp-info" style="flex:1;">
+        <strong><a href="{% url 'employee_detail' emp.pk %}" style="color:var(--text);">{{ emp.full_name }}</a></strong>
+        <span>{{ emp.department.name|default:"—" }}</span>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;letter-spacing:-1px;
+          color:{% if emp.risk_score >= 70 %}var(--red){% elif emp.risk_score >= 50 %}var(--orange){% else %}var(--yellow){% endif %};">
+          {{ emp.risk_score|floatformat:0 }}
+        </div>
+        <div style="font-size:9px;font-family:var(--font-mono);color:var(--text3);">
+          {% if emp.risk_score >= 70 %}CRITICAL{% elif emp.risk_score >= 50 %}HIGH{% else %}MEDIUM{% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <p style="color:var(--text3);font-size:13px;">No high-risk employees detected.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Recent Employees + Anomalies -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Recent Employees</div>
+      <a href="{% url 'employee_list' %}" class="btn btn-ghost btn-sm">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Employee</th><th>Department</th><th>Status</th><th>Joined</th></tr></thead>
+        <tbody>
+          {% for emp in recent_employees %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="emp-avatar">{{ emp.first_name.0 }}{{ emp.last_name.0 }}</div>
+                <div class="emp-info">
+                  <strong><a href="{% url 'employee_detail' emp.pk %}" style="color:inherit;">{{ emp.full_name }}</a></strong>
+                  <span>{{ emp.designation }}</span>
+                </div>
+              </div>
+            </td>
+            <td style="font-size:12px;">{{ emp.department.name|default:"—" }}</td>
+            <td><span class="badge {% if emp.employment_status == 'active' %}badge-green{% else %}badge-gray{% endif %}">{{ emp.employment_status }}</span></td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--text3);">{{ emp.date_joined|date:"M d, Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:var(--text3);font-size:13px;padding:20px;">No employees yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Anomalies -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="anomaly-dot"></span>Recent Anomalies</div>
+      <span class="badge badge-red">ML Flagged</span>
+    </div>
+    {% for rec in recent_anomalies %}
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div class="emp-avatar sm">{{ rec.employee.first_name.0 }}{{ rec.employee.last_name.0 }}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);">{{ rec.employee.full_name }}</div>
+        <div style="font-size:11px;color:var(--text3);">{{ rec.anomaly_reason|default:"Unusual pattern detected"|truncatechars:50 }}</div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">{{ rec.date|date:"M d" }}</div>
+    </div>
+    {% empty %}
+    <div style="padding:20px;text-align:center;color:var(--text3);font-size:13px;">
+      <i class="fa fa-check-circle" style="color:var(--green);font-size:24px;display:block;margin-bottom:8px;"></i>
+      No anomalies detected
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Live clock
+function updateClock() {
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('live-date').textContent =
+    days[now.getDay()] + ', ' + months[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear() +
+    ' · ' + now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// Attendance chart
+const trendData = {{ attendance_trend|safe }};
+const ctx = document.getElementById('attendanceChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: trendData.map(d => d.date),
+    datasets: [
+      { label: 'Present', data: trendData.map(d => d.present), backgroundColor: 'rgba(108,99,255,0.6)', borderRadius: 5, borderSkipped: false },
+      { label: 'Absent', data: trendData.map(d => d.absent), backgroundColor: 'rgba(239,68,68,0.4)', borderRadius: 5, borderSkipped: false }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#8891a8', font: { family: 'JetBrains Mono', size: 11 } } },
+      tooltip: { backgroundColor: '#13151c', borderColor: '#1f2430', borderWidth: 1, titleColor: '#e8eaf0', bodyColor: '#8891a8' }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#555e72', font: { family: 'JetBrains Mono', size: 10 } } },
+      y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555e72', font: { family: 'JetBrains Mono', size: 10 } } }
+    }
+  }
+});
+
+// Employment type donut
+const typeData = {{ type_breakdown|safe }};
+const typeCtx = document.getElementById('typeChart').getContext('2d');
+new Chart(typeCtx, {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(typeData),
+    datasets: [{ data: Object.values(typeData), backgroundColor: ['rgba(108,99,255,0.7)','rgba(16,185,129,0.7)','rgba(245,158,11,0.7)','rgba(6,182,212,0.7)'], borderWidth: 0 }]
+  },
+  options: {
+    responsive: true, cutout: '65%',
+    plugins: {
+      legend: { position: 'right', labels: { color: '#8891a8', font: { family: 'JetBrains Mono', size: 11 }, padding: 12 } },
+      tooltip: { backgroundColor: '#13151c', borderColor: '#1f2430', borderWidth: 1, titleColor: '#e8eaf0', bodyColor: '#8891a8' }
+    }
+  }
+});
+
+// Quick ML bulk run
+function runBulkMLQuick() {
+  showToast('Running ML analysis on all employees...', 'info');
+  fetch('/api/ml/bulk-update/', { headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+  .then(r => r.json())
+  .then(d => { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1500); })
+  .catch(() => showToast('ML update failed', 'error'));
+}
+
+// Auto-refresh stats every 60s
+setInterval(() => {
+  fetch('/api/dashboard/stats/')
+  .then(r => r.json())
+  .then(d => {
+    // Could update individual stat cards here
+  });
+}, 60000);
+</script>
+{% endblock %}

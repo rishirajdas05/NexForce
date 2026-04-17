@@ -1,0 +1,133 @@
+{% extends "employees/base.html" %}
+{% block title %}Attendance — NexForce EMS{% endblock %}
+{% block page_title %}Attendance{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div>
+    <div style="font-size:13px;color:var(--text3);">{{ today|date:"l, F d Y" }} · Live tracking with ML anomaly detection</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-primary btn-sm" onclick="markAllPresent()">
+      <i class="fa fa-check-double"></i> Mark All Present
+    </button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Today's Attendance</div>
+    <span class="badge badge-green" id="present-count">{{ today_records|length }} marked</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Department</th>
+          <th>Check In</th>
+          <th>Check Out</th>
+          <th>Status</th>
+          <th>ML Flag</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        <tr id="row-{{ emp.pk }}">
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="emp-avatar sm">{{ emp.first_name.0 }}{{ emp.last_name.0 }}</div>
+              <div class="emp-info">
+                <strong>{{ emp.full_name }}</strong>
+                <span>{{ emp.employee_id }}</span>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px;color:var(--text2);">{{ emp.department.name|default:"—" }}</td>
+          <td>
+            <input type="time" id="ci-{{ emp.pk }}" class="form-control"
+              style="width:100px;padding:6px 8px;font-size:11px;font-family:var(--font-mono);"
+              value="">
+          </td>
+          <td>
+            <input type="time" id="co-{{ emp.pk }}" class="form-control"
+              style="width:100px;padding:6px 8px;font-size:11px;font-family:var(--font-mono);"
+              value="">
+          </td>
+          <td>
+            <select id="status-{{ emp.pk }}" class="form-control" style="width:130px;padding:6px 8px;font-size:11px;">
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+              <option value="late">Late</option>
+              <option value="work_from_home">WFH</option>
+              <option value="half_day">Half Day</option>
+              <option value="on_leave">On Leave</option>
+            </select>
+          </td>
+          <td id="flag-{{ emp.pk }}">
+            <span style="font-size:10px;color:var(--text3);">—</span>
+          </td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="markAttendance({{ emp.pk }})">
+              <i class="fa fa-check"></i> Save
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center;color:var(--text3);padding:30px;">No employees found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function markAttendance(empId) {
+  const checkIn = document.getElementById(`ci-${empId}`).value;
+  const checkOut = document.getElementById(`co-${empId}`).value;
+  const status = document.getElementById(`status-${empId}`).value;
+
+  fetch('/api/attendance/mark/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: JSON.stringify({
+      employee_id: empId,
+      status,
+      check_in: checkIn || null,
+      check_out: checkOut || null
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showToast('Attendance saved', 'success');
+      if (data.is_anomaly) {
+        document.getElementById(`flag-${empId}`).innerHTML =
+          `<span class="anomaly-dot"></span><span style="font-size:10px;color:var(--red);">Anomaly</span>`;
+        showToast('ML anomaly detected', 'error');
+      } else {
+        document.getElementById(`flag-${empId}`).innerHTML =
+          `<span style="font-size:10px;color:var(--green);">OK</span>`;
+      }
+    }
+  })
+  .catch(() => showToast('Error saving attendance', 'error'));
+}
+
+function markAllPresent() {
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.querySelectorAll('[id^="status-"]').forEach(sel => sel.value = 'present');
+  document.querySelectorAll('[id^="ci-"]').forEach(inp => { if (!inp.value) inp.value = timeStr; });
+  showToast('All set to Present. Click Save per row to confirm.', 'info');
+}
+</script>
+{% endblock %}

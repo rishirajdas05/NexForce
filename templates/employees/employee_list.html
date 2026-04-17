@@ -1,0 +1,228 @@
+{% extends "employees/base.html" %}
+{% block title %}Employees — NexForce EMS{% endblock %}
+{% block page_title %}Employees{% endblock %}
+
+{% block content %}
+<!-- Filters & Actions -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <form method="GET" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select name="department" class="form-control" style="width:160px;padding:8px 12px;font-size:12px;" onchange="this.form.submit()">
+        <option value="">All Departments</option>
+        {% for dept in departments %}
+        <option value="{{ dept.id }}" {% if dept_filter == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="status" class="form-control" style="width:140px;padding:8px 12px;font-size:12px;" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+        <option value="on_leave" {% if status_filter == 'on_leave' %}selected{% endif %}>On Leave</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+      <select name="type" class="form-control" style="width:140px;padding:8px 12px;font-size:12px;" onchange="this.form.submit()">
+        <option value="">All Types</option>
+        <option value="full_time" {% if type_filter == 'full_time' %}selected{% endif %}>Full Time</option>
+        <option value="part_time" {% if type_filter == 'part_time' %}selected{% endif %}>Part Time</option>
+        <option value="contract" {% if type_filter == 'contract' %}selected{% endif %}>Contract</option>
+        <option value="intern" {% if type_filter == 'intern' %}selected{% endif %}>Intern</option>
+      </select>
+    </form>
+    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);">{{ total_count }} employees</span>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-ghost btn-sm" id="view-toggle" onclick="toggleView()">
+      <i class="fa fa-grid-2" id="view-icon"></i> Grid
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
+      <i class="fa fa-download"></i> Export CSV
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="runMLAll()">
+      <i class="fa fa-brain"></i> ML Update All
+    </button>
+    <a href="{% url 'admin_panel' %}" class="btn btn-primary btn-sm">
+      <i class="fa fa-plus"></i> Add Employee
+    </a>
+  </div>
+</div>
+
+<!-- Table View -->
+<div id="table-view">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th><th>Department</th><th>Type</th><th>Status</th>
+            <th>Performance</th><th>Risk</th><th>Salary</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for emp in employees %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="emp-avatar">{{ emp.first_name.0 }}{{ emp.last_name.0 }}</div>
+                <div class="emp-info">
+                  <strong><a href="{% url 'employee_detail' emp.pk %}" style="color:var(--text);">{{ emp.full_name }}</a></strong>
+                  <span>{{ emp.employee_id }} · {{ emp.designation }}</span>
+                </div>
+              </div>
+            </td>
+            <td style="font-size:12.5px;">{{ emp.department.name|default:"—" }}</td>
+            <td><span class="badge {% if emp.employment_type == 'full_time' %}badge-blue{% elif emp.employment_type == 'intern' %}badge-cyan{% else %}badge-gray{% endif %}">{{ emp.get_employment_type_display }}</span></td>
+            <td>
+              <span class="badge {% if emp.employment_status == 'active' %}badge-green{% elif emp.employment_status == 'on_leave' %}badge-yellow{% elif emp.employment_status == 'terminated' %}badge-red{% else %}badge-gray{% endif %}">
+                {% if emp.employment_status == 'active' %}<span class="anomaly-dot" style="background:var(--green);width:5px;height:5px;animation:none;"></span>{% endif %}
+                {{ emp.get_employment_status_display }}
+              </span>
+            </td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;letter-spacing:-0.5px;color:{% if emp.performance_score >= 75 %}var(--green){% elif emp.performance_score >= 50 %}var(--yellow){% else %}var(--red){% endif %}">{{ emp.performance_score|floatformat:0 }}</span>
+                <div style="flex:1;min-width:50px;">
+                  <div class="progress-bar"><div class="progress-fill" style="width:{{ emp.performance_score|floatformat:0 }}%;background:{% if emp.performance_score >= 75 %}var(--green){% elif emp.performance_score >= 50 %}var(--yellow){% else %}var(--red){% endif %};"></div></div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span style="font-family:var(--font-mono);font-size:11px;color:{% if emp.risk_score >= 70 %}var(--red){% elif emp.risk_score >= 50 %}var(--orange){% elif emp.risk_score >= 30 %}var(--yellow){% else %}var(--green){% endif %}">
+                {% if emp.risk_score >= 70 %}Critical{% elif emp.risk_score >= 50 %}High{% elif emp.risk_score >= 30 %}Medium{% else %}Low{% endif %}
+              </span>
+            </td>
+            <td style="font-family:var(--font-mono);font-size:12px;color:var(--text2);">₹{{ emp.salary|floatformat:0 }}</td>
+            <td>
+              <div style="display:flex;gap:5px;">
+                <a href="{% url 'employee_detail' emp.pk %}" class="icon-btn" title="View" style="width:28px;height:28px;font-size:11px;"><i class="fa fa-eye"></i></a>
+                <button class="icon-btn" title="ML Analysis" style="width:28px;height:28px;font-size:11px;" onclick="runMLAnalysis({{ emp.pk }}, '{{ emp.full_name }}')"><i class="fa fa-brain"></i></button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text3);">No employees found. <a href="{% url 'admin_panel' %}" style="color:var(--accent);">Add one</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Grid View -->
+<div id="grid-view" style="display:none;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;">
+    {% for emp in employees %}
+    <a href="{% url 'employee_detail' emp.pk %}" style="text-decoration:none;">
+      <div class="card" style="cursor:pointer;transition:all 0.2s;" onmouseenter="this.style.borderColor='var(--border2)'" onmouseleave="this.style.borderColor='var(--border)'">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div class="emp-avatar lg">{{ emp.first_name.0 }}{{ emp.last_name.0 }}</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;color:var(--text);">{{ emp.full_name }}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">{{ emp.employee_id }}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">{{ emp.designation }}</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">{{ emp.department.name|default:"No dept" }}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="badge {% if emp.employment_status == 'active' %}badge-green{% else %}badge-gray{% endif %}">{{ emp.employment_status }}</span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;letter-spacing:-1px;color:{% if emp.performance_score >= 75 %}var(--green){% elif emp.performance_score >= 50 %}var(--yellow){% else %}var(--text3){% endif %};">{{ emp.performance_score|floatformat:0 }}</span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ML Result Modal -->
+<div class="modal-overlay" id="ml-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa fa-brain" style="color:var(--accent);margin-right:8px;"></i>ML Analysis Result</div>
+      <button class="modal-close" onclick="closeModal('ml-modal')"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div id="ml-result-content" style="color:var(--text2);font-size:13px;line-height:1.8;">
+      <div style="text-align:center;padding:20px;"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let isGridView = false;
+
+function toggleView() {
+  isGridView = !isGridView;
+  document.getElementById('table-view').style.display = isGridView ? 'none' : 'block';
+  document.getElementById('grid-view').style.display = isGridView ? 'block' : 'none';
+  document.getElementById('view-icon').className = isGridView ? 'fa fa-table' : 'fa fa-grid-2';
+  document.getElementById('view-toggle').innerHTML = `<i class="fa ${isGridView ? 'fa-table' : 'fa-grid-2'}"></i> ${isGridView ? 'Table' : 'Grid'}`;
+}
+
+function runMLAnalysis(empId, empName) {
+  openModal('ml-modal');
+  document.getElementById('ml-result-content').innerHTML = `<div style="text-align:center;padding:20px;"><div class="spinner"></div><p style="margin-top:14px;color:var(--text3);font-size:12px;">Analyzing ${empName}...</p></div>`;
+  fetch(`/api/ml/${empId}/analyze/`)
+  .then(r => r.json())
+  .then(data => {
+    const p = data.performance;
+    const scoreColor = p.score >= 75 ? 'var(--green)' : p.score >= 50 ? 'var(--yellow)' : 'var(--red)';
+    document.getElementById('ml-result-content').innerHTML = `
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:52px;font-weight:700;letter-spacing:-3px;color:${scoreColor};font-variant-numeric:tabular-nums;">${p.score}</div>
+        <div style="font-size:12px;color:var(--text3);font-family:var(--font-mono);">Performance Score · Grade ${p.grade}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        ${Object.entries(p.component_scores).map(([k,v]) => `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;">
+            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">${k.replace(/_/g,' ')}</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;letter-spacing:-1px;color:var(--text);">${v}</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${v}%;background:var(--accent);"></div></div>
+          </div>`).join('')}
+      </div>
+      ${p.insights.length ? `<div style="margin-bottom:10px;">${p.insights.map(i => `<div style="font-size:12px;color:var(--green);margin-bottom:4px;"><i class="fa fa-lightbulb"></i> ${i}</div>`).join('')}</div>` : ''}
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:var(--text2);">
+        Attendance: <strong style="color:var(--text);">${data.attendance_score.toFixed(1)}</strong> ·
+        Anomalies: <strong style="color:${data.anomalies_detected?'var(--red)':'var(--green)'};">${data.anomalies_detected}</strong> ·
+        Risk: <strong style="color:${data.risk.risk_color};">${data.risk.risk_level}</strong>
+      </div>`;
+    showToast(`ML analysis complete for ${empName}`, 'success');
+  })
+  .catch(() => { document.getElementById('ml-result-content').innerHTML = `<p style="color:var(--red);">Analysis failed.</p>`; });
+}
+
+function runMLAll() {
+  showToast('Running ML on all employees...', 'info');
+  fetch('/api/ml/bulk-update/', { headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+  .then(r => r.json())
+  .then(d => { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1500); })
+  .catch(() => showToast('ML bulk update failed', 'error'));
+}
+
+function exportCSV() {
+  const rows = [['Name','Employee ID','Department','Designation','Type','Status','Salary','Performance','Risk']];
+  document.querySelectorAll('tbody tr').forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 7) {
+      rows.push([
+        cells[0].textContent.trim().split('\n')[0].trim(),
+        cells[0].querySelector('.emp-info span')?.textContent.split('·')[0].trim() || '',
+        cells[1].textContent.trim(),
+        cells[0].querySelector('.emp-info span')?.textContent.split('·')[1]?.trim() || '',
+        cells[2].textContent.trim(),
+        cells[3].textContent.trim(),
+        cells[6].textContent.trim(),
+        cells[4].textContent.trim(),
+        cells[5].textContent.trim(),
+      ]);
+    }
+  });
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'employees_export.csv';
+  a.click();
+  showToast('CSV exported', 'success');
+}
+</script>
+{% endblock %}

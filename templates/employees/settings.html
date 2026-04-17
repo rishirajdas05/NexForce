@@ -1,0 +1,566 @@
+{% extends "employees/base.html" %}
+{% block title %}Settings — NexForce EMS{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div style="max-width:1000px;">
+
+  <!-- System Stats -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;">
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Employees</div>
+      <div style="font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--text);">{{ total_employees }}</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Departments</div>
+      <div style="font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--text);">{{ total_departments }}</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Reviews</div>
+      <div style="font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--text);">{{ total_reviews }}</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Attendance</div>
+      <div style="font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--text);">{{ total_attendance }}</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Leave Requests</div>
+      <div style="font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--text);">{{ total_leaves }}</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+    <!-- Profile Settings -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-user" style="color:var(--accent);margin-right:6px;"></i>Your Profile</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+        <div class="emp-avatar lg">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</div>
+        <div>
+          <div style="font-weight:600;font-size:15px;">{{ user.get_full_name|default:user.username }}</div>
+          <div style="font-size:12px;color:var(--text3);">{{ user.email }}</div>
+          <div style="font-size:11px;color:var(--accent3);font-family:var(--font-mono);margin-top:2px;">Administrator</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">First Name</label>
+        <input type="text" class="form-control" id="first-name" value="{{ user.first_name }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        <input type="text" class="form-control" id="last-name" value="{{ user.last_name }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" value="{{ user.email }}" disabled style="opacity:0.5;cursor:not-allowed;">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="updateProfile()" style="width:100%;justify-content:center;">
+        <i class="fa fa-save"></i> Save Profile
+      </button>
+      <hr class="divider">
+      <div style="display:flex;gap:8px;">
+        <a href="{% url 'account_change_password' %}" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;">
+          <i class="fa fa-lock"></i> Change Password
+        </a>
+        <a href="{% url 'account_logout' %}" class="btn btn-danger btn-sm" style="flex:1;justify-content:center;">
+          <i class="fa fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+
+    <!-- ML Controls -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-brain" style="color:var(--accent);margin-right:6px;"></i>ML Engine</div>
+        <span class="badge badge-green">10 Active</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        {% for model in ml_models %}
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:12.5px;font-weight:500;color:var(--text);">{{ model.name }}</div>
+            <div style="font-size:10px;color:var(--text3);">{{ model.desc }}</div>
+          </div>
+          <span class="badge badge-green">Active</span>
+        </div>
+        {% endfor %}
+      </div>
+      <button class="btn btn-primary" onclick="runBulkML()" style="width:100%;justify-content:center;" id="bulk-ml-btn">
+        <i class="fa fa-rotate"></i> Run ML on All Employees
+      </button>
+      <div id="bulk-ml-result" style="margin-top:8px;font-size:12px;color:var(--text3);text-align:center;min-height:18px;"></div>
+    </div>
+  </div>
+
+  <!-- Data Management — In-App Forms -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-database" style="color:var(--accent);margin-right:6px;"></i>Data Management</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm active-tab" onclick="switchTab('employee')" id="tab-employee">Employee</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('department')" id="tab-department">Department</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('review')" id="tab-review">Review</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('leave')" id="tab-leave">Leave</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('payroll')" id="tab-payroll">Payroll</button>
+      </div>
+    </div>
+
+    <!-- Add Employee -->
+    <div id="form-employee">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Add New Employee</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">First Name *</label>
+          <input type="text" class="form-control" id="emp-first-name" placeholder="John">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name *</label>
+          <input type="text" class="form-control" id="emp-last-name" placeholder="Doe">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Employee ID *</label>
+          <input type="text" class="form-control" id="emp-id" placeholder="NX0013">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <input type="email" class="form-control" id="emp-email" placeholder="john@company.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" class="form-control" id="emp-phone" placeholder="+91 98XXXXXXXX">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Designation *</label>
+          <input type="text" class="form-control" id="emp-designation" placeholder="Software Engineer">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <select class="form-control" id="emp-department">
+            <option value="">— Select —</option>
+            {% for dept in departments %}
+            <option value="{{ dept.id }}">{{ dept.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Employment Type</label>
+          <select class="form-control" id="emp-type">
+            <option value="full_time">Full Time</option>
+            <option value="part_time">Part Time</option>
+            <option value="contract">Contract</option>
+            <option value="intern">Intern</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Salary (₹)</label>
+          <input type="number" class="form-control" id="emp-salary" placeholder="75000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date Joined</label>
+          <input type="date" class="form-control" id="emp-date-joined" value="{% now 'Y-m-d' %}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select class="form-control" id="emp-gender">
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="O">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Skills (comma separated)</label>
+          <input type="text" class="form-control" id="emp-skills" placeholder="Python, Django, React">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitForm('employee')" style="margin-top:8px;">
+        <i class="fa fa-user-plus"></i> Add Employee
+      </button>
+    </div>
+
+    <!-- Add Department -->
+    <div id="form-department" style="display:none;">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Add New Department</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Department Name *</label>
+          <input type="text" class="form-control" id="dept-name" placeholder="Engineering">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Code *</label>
+          <input type="text" class="form-control" id="dept-code" placeholder="ENG" maxlength="10">
+        </div>
+        <div class="form-group" style="grid-column:span 2;">
+          <label class="form-label">Description</label>
+          <input type="text" class="form-control" id="dept-desc" placeholder="Responsible for product development...">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitForm('department')" style="margin-top:8px;">
+        <i class="fa fa-building"></i> Add Department
+      </button>
+    </div>
+
+    <!-- Add Performance Review -->
+    <div id="form-review" style="display:none;">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Add Performance Review</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Employee *</label>
+          <select class="form-control" id="review-employee">
+            <option value="">— Select Employee —</option>
+            {% for emp in employees %}
+            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Review Period *</label>
+          <input type="text" class="form-control" id="review-period" placeholder="Q2 2025">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Review Date *</label>
+          <input type="date" class="form-control" id="review-date" value="{% now 'Y-m-d' %}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quality (1-5)</label>
+          <select class="form-control" id="review-quality">
+            <option value="3">3</option><option value="1">1</option><option value="2">2</option>
+            <option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Productivity (1-5)</label>
+          <select class="form-control" id="review-productivity">
+            <option value="3">3</option><option value="1">1</option><option value="2">2</option>
+            <option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teamwork (1-5)</label>
+          <select class="form-control" id="review-teamwork">
+            <option value="3">3</option><option value="1">1</option><option value="2">2</option>
+            <option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Communication (1-5)</label>
+          <select class="form-control" id="review-communication">
+            <option value="3">3</option><option value="1">1</option><option value="2">2</option>
+            <option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Initiative (1-5)</label>
+          <select class="form-control" id="review-initiative">
+            <option value="3">3</option><option value="1">1</option><option value="2">2</option>
+            <option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:span 3;">
+          <label class="form-label">Comments</label>
+          <input type="text" class="form-control" id="review-comments" placeholder="Strong performer, consistent delivery...">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitForm('review')" style="margin-top:8px;">
+        <i class="fa fa-star"></i> Add Review
+      </button>
+    </div>
+
+    <!-- Add Leave Request -->
+    <div id="form-leave" style="display:none;">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Add Leave Request</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Employee *</label>
+          <select class="form-control" id="leave-employee">
+            <option value="">— Select Employee —</option>
+            {% for emp in employees %}
+            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Leave Type *</label>
+          <select class="form-control" id="leave-type">
+            <option value="annual">Annual Leave</option>
+            <option value="sick">Sick Leave</option>
+            <option value="emergency">Emergency Leave</option>
+            <option value="maternity">Maternity Leave</option>
+            <option value="paternity">Paternity Leave</option>
+            <option value="unpaid">Unpaid Leave</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="leave-status">
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Start Date *</label>
+          <input type="date" class="form-control" id="leave-start">
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Date *</label>
+          <input type="date" class="form-control" id="leave-end">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason *</label>
+          <input type="text" class="form-control" id="leave-reason" placeholder="Medical appointment, family event...">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitForm('leave')" style="margin-top:8px;">
+        <i class="fa fa-calendar-plus"></i> Add Leave Request
+      </button>
+    </div>
+
+    <!-- Add Payroll -->
+    <div id="form-payroll" style="display:none;">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Add Payroll Record</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Employee *</label>
+          <select class="form-control" id="payroll-employee">
+            <option value="">— Select Employee —</option>
+            {% for emp in employees %}
+            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Month *</label>
+          <select class="form-control" id="payroll-month">
+            {% for m in months %}
+            <option value="{{ m.val }}">{{ m.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Year *</label>
+          <input type="number" class="form-control" id="payroll-year" value="2025" min="2020" max="2030">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Basic Salary (₹) *</label>
+          <input type="number" class="form-control" id="payroll-basic" placeholder="75000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Allowances (₹)</label>
+          <input type="number" class="form-control" id="payroll-allowances" placeholder="5000" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deductions (₹)</label>
+          <input type="number" class="form-control" id="payroll-deductions" placeholder="2000" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tax (₹)</label>
+          <input type="number" class="form-control" id="payroll-tax" placeholder="8000" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="payroll-status">
+            <option value="pending">Pending</option>
+            <option value="processed">Processed</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="submitForm('payroll')" style="margin-top:8px;">
+        <i class="fa fa-money-bill"></i> Add Payroll Record
+      </button>
+    </div>
+
+  </div>
+
+  <!-- System Info -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-circle-info" style="color:var(--accent);margin-right:6px;"></i>System Info</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Django</div>
+        <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2);">4.2.9</div>
+      </div>
+      <div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">ML Models</div>
+        <div style="font-family:var(--font-mono);font-size:13px;color:var(--green);">10 Active</div>
+      </div>
+      <div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Auth</div>
+        <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2);">allauth + Google OAuth</div>
+      </div>
+      <div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Database</div>
+        <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2);">SQLite</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Tab switching ────────────────────────────────────────────────
+function switchTab(tab) {
+  ['employee','department','review','leave','payroll'].forEach(t => {
+    document.getElementById(`form-${t}`).style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById(`tab-${t}`);
+    if (btn) {
+      btn.style.background = t === tab ? 'var(--accent)' : '';
+      btn.style.color = t === tab ? 'white' : '';
+      btn.style.borderColor = t === tab ? 'var(--accent)' : '';
+    }
+  });
+}
+
+// Initialise first tab active
+switchTab('employee');
+
+// ── Form submissions ─────────────────────────────────────────────
+function submitForm(type) {
+  let data = {};
+  let valid = true;
+
+  if (type === 'employee') {
+    data = {
+      type,
+      first_name: document.getElementById('emp-first-name').value.trim(),
+      last_name: document.getElementById('emp-last-name').value.trim(),
+      employee_id: document.getElementById('emp-id').value.trim(),
+      email: document.getElementById('emp-email').value.trim(),
+      phone: document.getElementById('emp-phone').value.trim(),
+      designation: document.getElementById('emp-designation').value.trim(),
+      department: document.getElementById('emp-department').value,
+      employment_type: document.getElementById('emp-type').value,
+      salary: document.getElementById('emp-salary').value,
+      date_joined: document.getElementById('emp-date-joined').value,
+      gender: document.getElementById('emp-gender').value,
+      skills: document.getElementById('emp-skills').value.trim(),
+    };
+    if (!data.first_name || !data.last_name || !data.employee_id || !data.email || !data.designation) {
+      showToast('Please fill all required fields', 'error'); return;
+    }
+  } else if (type === 'department') {
+    data = {
+      type,
+      name: document.getElementById('dept-name').value.trim(),
+      code: document.getElementById('dept-code').value.trim().toUpperCase(),
+      description: document.getElementById('dept-desc').value.trim(),
+    };
+    if (!data.name || !data.code) {
+      showToast('Name and Code are required', 'error'); return;
+    }
+  } else if (type === 'review') {
+    data = {
+      type,
+      employee: document.getElementById('review-employee').value,
+      review_period: document.getElementById('review-period').value.trim(),
+      review_date: document.getElementById('review-date').value,
+      quality_score: document.getElementById('review-quality').value,
+      productivity_score: document.getElementById('review-productivity').value,
+      teamwork_score: document.getElementById('review-teamwork').value,
+      communication_score: document.getElementById('review-communication').value,
+      initiative_score: document.getElementById('review-initiative').value,
+      comments: document.getElementById('review-comments').value.trim(),
+    };
+    if (!data.employee || !data.review_period || !data.review_date) {
+      showToast('Employee, period and date are required', 'error'); return;
+    }
+  } else if (type === 'leave') {
+    data = {
+      type,
+      employee: document.getElementById('leave-employee').value,
+      leave_type: document.getElementById('leave-type').value,
+      status: document.getElementById('leave-status').value,
+      start_date: document.getElementById('leave-start').value,
+      end_date: document.getElementById('leave-end').value,
+      reason: document.getElementById('leave-reason').value.trim(),
+    };
+    if (!data.employee || !data.start_date || !data.end_date || !data.reason) {
+      showToast('All fields required', 'error'); return;
+    }
+  } else if (type === 'payroll') {
+    const basic = parseFloat(document.getElementById('payroll-basic').value) || 0;
+    const allowances = parseFloat(document.getElementById('payroll-allowances').value) || 0;
+    const deductions = parseFloat(document.getElementById('payroll-deductions').value) || 0;
+    const tax = parseFloat(document.getElementById('payroll-tax').value) || 0;
+    data = {
+      type,
+      employee: document.getElementById('payroll-employee').value,
+      month: document.getElementById('payroll-month').value,
+      year: document.getElementById('payroll-year').value,
+      basic_salary: basic,
+      allowances,
+      deductions,
+      tax,
+      net_salary: basic + allowances - deductions - tax,
+      status: document.getElementById('payroll-status').value,
+    };
+    if (!data.employee || !data.basic_salary) {
+      showToast('Employee and basic salary required', 'error'); return;
+    }
+  }
+
+  fetch('/api/data/create/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.success) {
+      showToast(res.message, 'success');
+      // Reset form fields
+      document.querySelectorAll(`#form-${type} input`).forEach(i => {
+        if (i.type !== 'date') i.value = '';
+      });
+    } else {
+      showToast(res.error || 'Something went wrong', 'error');
+    }
+  })
+  .catch(() => showToast('Request failed', 'error'));
+}
+
+// ── Profile update ────────────────────────────────────────────────
+function updateProfile() {
+  fetch('/settings/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: `action=update_profile&first_name=${encodeURIComponent(document.getElementById('first-name').value)}&last_name=${encodeURIComponent(document.getElementById('last-name').value)}`
+  })
+  .then(r => r.json())
+  .then(d => showToast(d.message, d.success ? 'success' : 'error'))
+  .catch(() => showToast('Update failed', 'error'));
+}
+
+// ── Bulk ML ───────────────────────────────────────────────────────
+function runBulkML() {
+  const btn = document.getElementById('bulk-ml-btn');
+  const result = document.getElementById('bulk-ml-result');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Running...';
+  result.textContent = 'Analyzing all employees...';
+
+  fetch('/api/ml/bulk-update/', { headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+  .then(r => r.json())
+  .then(d => {
+    showToast(d.message, 'success');
+    result.textContent = d.message + ' — scores saved.';
+    result.style.color = 'var(--green)';
+  })
+  .catch(() => showToast('ML bulk update failed', 'error'))
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa fa-rotate"></i> Run ML on All Employees';
+  });
+}
+</script>
+{% endblock %}

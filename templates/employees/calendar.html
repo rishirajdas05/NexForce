@@ -1,0 +1,324 @@
+{% extends "employees/base.html" %}
+{% block title %}Calendar — NexForce EMS{% endblock %}
+{% block page_title %}Calendar{% endblock %}
+
+{% block extra_head %}
+<style>
+.page-content { padding: 12px 16px !important; }
+
+.cal-wrap { width: 100%; overflow: hidden; }
+
+.cal-header-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 1px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cal-header-cell {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  text-align: center;
+  padding: 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cal-body {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: 80px;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cal-day {
+  background: var(--bg3);
+  padding: 4px 5px;
+  height: 80px;
+  cursor: pointer;
+  transition: background 0.12s;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.cal-day:hover { background: var(--card2); }
+.cal-day.today { background: rgba(37,99,235,0.08); }
+.cal-day.other-month { background: var(--bg2); opacity: 0.4; pointer-events: none; }
+.cal-day.weekend { background: var(--bg2); }
+
+.cal-day-num {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 3px;
+  line-height: 1;
+}
+
+.cal-day.today .cal-day-num {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.cal-event {
+  display: block;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-bottom: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
+  max-width: 100%;
+}
+
+.cal-event.leave   { background: rgba(245,158,11,0.25); color: #d97706; }
+.cal-event.birthday { background: rgba(16,185,129,0.25); color: #059669; }
+.cal-event.review  { background: rgba(37,99,235,0.25); color: #2563eb; }
+
+.cal-more {
+  font-size: 9px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+}
+
+.up-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  scrollbar-width: thin;
+}
+
+.up-card {
+  flex-shrink: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 140px;
+  max-width: 160px;
+  cursor: pointer;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cal-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 12px;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-body);
+  transition: all 0.12s;
+}
+
+.cal-btn:hover { border-color: var(--border2); color: var(--text); }
+
+.legend {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Nav -->
+<div class="cal-nav">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="cal-btn" onclick="changeMonth(-1)">← Prev</button>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;min-width:130px;text-align:center;" id="month-label"></div>
+    <button class="cal-btn" onclick="changeMonth(1)">Next →</button>
+    <button class="cal-btn" onclick="goToToday()">Today</button>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(245,158,11,0.6);"></div>Leave</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(16,185,129,0.6);"></div>Birthday</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(37,99,235,0.6);"></div>Review</div>
+  </div>
+</div>
+
+<!-- Upcoming strip -->
+<div class="up-strip" id="up-strip">
+  <div style="color:var(--text3);font-size:12px;padding:8px;">No upcoming events</div>
+</div>
+
+<!-- Calendar -->
+<div class="cal-wrap">
+  <div class="cal-header-row" id="cal-header">
+    <div class="cal-header-cell">Sun</div>
+    <div class="cal-header-cell">Mon</div>
+    <div class="cal-header-cell">Tue</div>
+    <div class="cal-header-cell">Wed</div>
+    <div class="cal-header-cell">Thu</div>
+    <div class="cal-header-cell">Fri</div>
+    <div class="cal-header-cell">Sat</div>
+  </div>
+  <div class="cal-body" id="cal-body"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="event-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="event-modal-title">Events</div>
+      <button class="modal-close" onclick="closeModal('event-modal')"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div id="event-modal-body"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const calEvents = {{ cal_events|safe }};
+let currentDate = new Date();
+
+function renderCalendar(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const today = new Date();
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  document.getElementById('month-label').textContent = MONTHS[month] + ' ' + year;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
+  const body = document.getElementById('cal-body');
+  body.innerHTML = '';
+
+  function makeDay(dayNum, classes, dateStr) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day ' + classes;
+    const events = dateStr ? (calEvents[dateStr] || []) : [];
+
+    let evHtml = '';
+    events.slice(0, 2).forEach(e => {
+      evHtml += `<span class="cal-event ${e.type}" title="${e.title}">${e.title}</span>`;
+    });
+    if (events.length > 2) evHtml += `<span class="cal-more">+${events.length - 2} more</span>`;
+
+    if (dateStr && events.length) {
+      cell.onclick = () => showDayEvents(dateStr, events);
+    }
+
+    cell.innerHTML = `<div class="cal-day-num">${dayNum}</div>${evHtml}`;
+    body.appendChild(cell);
+  }
+
+  // Prev month padding
+  for (let i = firstDay - 1; i >= 0; i--) {
+    makeDay(daysInPrev - i, 'other-month', null);
+  }
+
+  // Current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(year, month, d).getDay();
+    const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+    const isWeekend = dow === 0 || dow === 6;
+    makeDay(d, (isToday ? 'today ' : '') + (isWeekend ? 'weekend' : ''), dateStr);
+  }
+
+  // Fill remaining
+  const total = firstDay + daysInMonth;
+  const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= rem; i++) {
+    makeDay(i, 'other-month', null);
+  }
+}
+
+function changeMonth(dir) {
+  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + dir, 1);
+  renderCalendar(currentDate);
+}
+
+function goToToday() {
+  currentDate = new Date();
+  renderCalendar(currentDate);
+}
+
+function showDayEvents(dateStr, events) {
+  const d = new Date(dateStr + 'T12:00:00');
+  document.getElementById('event-modal-title').textContent =
+    d.toLocaleDateString('default', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+  const colors = { leave:'#d97706', birthday:'#059669', review:'#2563eb' };
+  document.getElementById('event-modal-body').innerHTML = events.map(e => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+      <div style="width:8px;height:8px;border-radius:50%;background:${colors[e.type]||'var(--text3)'};flex-shrink:0;"></div>
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);">${e.title}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;margin-top:2px;">${e.type}</div>
+      </div>
+    </div>`).join('');
+  openModal('event-modal');
+}
+
+function renderUpcoming() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = [];
+  Object.entries(calEvents).forEach(([date, events]) => {
+    const d = new Date(date + 'T12:00:00');
+    if (d >= today) events.forEach(e => upcoming.push({...e, date, d}));
+  });
+  upcoming.sort((a,b) => a.d - b.d);
+  const strip = document.getElementById('up-strip');
+  if (!upcoming.length) return;
+  const colorMap = { leave:'badge-yellow', birthday:'badge-green', review:'badge-blue' };
+  strip.innerHTML = upcoming.slice(0,10).map(e => {
+    const d = new Date(e.date+'T12:00:00');
+    return `<div class="up-card" onclick="showDayEvents('${e.date}', calEvents['${e.date}']||[])">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">
+        ${d.toLocaleDateString('default',{month:'short',day:'numeric'})}
+      </div>
+      <div style="font-size:11px;font-weight:500;color:var(--text);margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.title}</div>
+      <span class="badge ${colorMap[e.type]||'badge-gray'}" style="font-size:9px;">${e.type}</span>
+    </div>`;
+  }).join('');
+}
+
+renderCalendar(currentDate);
+renderUpcoming();
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "employees/base.html" %}
+{% block title %}Team — NexForce EMS{% endblock %}
+{% block page_title %}Team{% endblock %}
+
+{% block content %}
+
+<!-- Department filter tabs -->
+<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;">
+  <button class="btn btn-primary btn-sm dept-tab" onclick="filterDept('all')" id="tab-all">All Departments</button>
+  {% for dept in departments %}
+  <button class="btn btn-ghost btn-sm dept-tab" onclick="filterDept('{{ dept.id }}')" id="tab-{{ dept.id }}">
+    {{ dept.name }} <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:4px;">{{ dept.employee_count }}</span>
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Team Grid -->
+<div id="team-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">
+  {% for emp in employees %}
+  <div class="card team-card" data-dept="{{ emp.department.id|default:'none' }}"
+    style="cursor:pointer;transition:all 0.2s;text-align:center;padding:24px 16px;"
+    onmouseenter="this.style.borderColor='var(--border2)';this.style.transform='translateY(-2px)'"
+    onmouseleave="this.style.borderColor='var(--border)';this.style.transform='translateY(0)'">
+    <a href="{% url 'employee_detail' emp.pk %}" style="text-decoration:none;color:inherit;">
+      <!-- Avatar -->
+      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,
+        hsl({{ forloop.counter0|add:200 }},60%,40%),hsl({{ forloop.counter0|add:240 }},60%,55%));
+        display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
+        font-weight:700;font-size:22px;color:white;margin:0 auto 14px;">
+        {{ emp.first_name.0 }}{{ emp.last_name.0 }}
+      </div>
+
+      <!-- Name & Role -->
+      <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:3px;">{{ emp.full_name }}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;font-family:var(--font-mono);">{{ emp.designation }}</div>
+
+      <!-- Department Badge -->
+      <span class="badge badge-blue" style="font-size:9px;margin-bottom:12px;">{{ emp.department.name|default:"No dept" }}</span>
+
+      <!-- Skills -->
+      {% if emp.skills %}
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
+        {% for skill in emp.skills_list|slice:":3" %}
+        <span class="skill-tag">{{ skill }}</span>
+        {% endfor %}
+        {% if emp.skills_list|length > 3 %}
+        <span class="skill-tag">+{{ emp.skills_list|length|add:"-3" }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <hr class="divider" style="margin:12px 0;">
+
+      <!-- Stats Row -->
+      <div style="display:flex;justify-content:space-around;">
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;letter-spacing:-1px;
+            color:{% if emp.performance_score >= 75 %}var(--green){% elif emp.performance_score >= 50 %}var(--yellow){% else %}var(--text3){% endif %};">
+            {{ emp.performance_score|floatformat:0 }}
+          </div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;">Perf</div>
+        </div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;letter-spacing:-1px;color:var(--text2);">
+            {{ emp.years_of_service }}y
+          </div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;">Tenure</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;">
+            <span class="badge {% if emp.employment_status == 'active' %}badge-green{% elif emp.employment_status == 'on_leave' %}badge-yellow{% else %}badge-gray{% endif %}" style="font-size:9px;">
+              {{ emp.employment_status }}
+            </span>
+          </div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">Status</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% empty %}
+  <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text3);">
+    <i class="fa fa-users" style="font-size:40px;opacity:0.2;display:block;margin-bottom:16px;"></i>
+    No employees found.
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function filterDept(deptId) {
+  // Update tab styles
+  document.querySelectorAll('.dept-tab').forEach(btn => {
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.className = 'btn btn-ghost btn-sm dept-tab';
+  });
+  const activeTab = document.getElementById('tab-' + deptId);
+  if (activeTab) {
+    activeTab.className = 'btn btn-primary btn-sm dept-tab';
+  }
+
+  // Filter cards
+  document.querySelectorAll('.team-card').forEach(card => {
+    if (deptId === 'all') {
+      card.style.display = '';
+    } else {
+      card.style.display = card.dataset.dept === deptId ? '' : 'none';
+    }
+  });
+}
+</script>
+{% endblock %}

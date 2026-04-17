@@ -1,0 +1,138 @@
+{% extends "employees/base.html" %}
+{% block title %}Profile — NexForce EMS{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+
+  <!-- Profile Header -->
+  <div class="card" style="margin-bottom:16px;padding:28px;">
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+      <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));
+        display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
+        font-weight:700;font-size:28px;color:white;flex-shrink:0;">
+        {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+      </div>
+      <div style="flex:1;">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px;">
+          {{ user.get_full_name|default:user.username }}
+        </div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:8px;">{{ user.email }}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="badge badge-blue">Administrator</span>
+          {% if user.is_staff %}<span class="badge badge-cyan">Staff</span>{% endif %}
+          {% if user.is_superuser %}<span class="badge badge-purple" style="background:rgba(108,99,255,0.15);color:var(--accent3);border:1px solid rgba(108,99,255,0.3);">Superuser</span>{% endif %}
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-bottom:4px;">Member since</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;">{{ user.date_joined|date:"M d, Y" }}</div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:8px;">Last login</div>
+        <div style="font-size:13px;color:var(--text2);">{{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px;">
+    <!-- Edit Profile -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-user-pen" style="color:var(--accent);margin-right:6px;"></i>Edit Profile</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">First Name</label>
+        <input type="text" class="form-control" id="p-first" value="{{ user.first_name }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        <input type="text" class="form-control" id="p-last" value="{{ user.last_name }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email (read-only)</label>
+        <input type="email" class="form-control" value="{{ user.email }}" disabled style="opacity:0.5;">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveProfile()">
+        <i class="fa fa-save"></i> Save Changes
+      </button>
+    </div>
+
+    <!-- Account Stats -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-chart-simple" style="color:var(--accent);margin-right:6px;"></i>Activity Summary</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:13px;color:var(--text2);">Employees managed</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--text);">{{ total_employees }}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:13px;color:var(--text2);">Leave requests reviewed</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--text);">{{ leaves_reviewed }}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:13px;color:var(--text2);">Reviews submitted</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--text);">{{ reviews_submitted }}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:13px;color:var(--text2);">ML analyses run</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--green);">{{ ml_runs }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-shield-halved" style="color:var(--accent);margin-right:6px;"></i>Security</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="{% url 'account_change_password' %}" class="btn btn-ghost">
+        <i class="fa fa-lock"></i> Change Password
+      </a>
+      <a href="{% url 'account_email' %}" class="btn btn-ghost">
+        <i class="fa fa-envelope"></i> Manage Email
+      </a>
+      <a href="{% url 'account_logout' %}" class="btn btn-danger">
+        <i class="fa fa-arrow-right-from-bracket"></i> Sign Out
+      </a>
+    </div>
+  </div>
+
+  <!-- Linked Employees -->
+  {% if linked_employee %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-id-badge" style="color:var(--accent);margin-right:6px;"></i>Linked Employee Profile</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="emp-avatar lg">{{ linked_employee.first_name.0 }}{{ linked_employee.last_name.0 }}</div>
+      <div>
+        <div style="font-weight:600;font-size:15px;">{{ linked_employee.full_name }}</div>
+        <div style="font-size:12px;color:var(--text3);">{{ linked_employee.designation }} · {{ linked_employee.department.name|default:"—" }}</div>
+      </div>
+      <a href="{% url 'employee_detail' linked_employee.pk %}" class="btn btn-ghost btn-sm" style="margin-left:auto;">
+        <i class="fa fa-eye"></i> View Profile
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function saveProfile() {
+  fetch('/settings/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
+    body: `action=update_profile&first_name=${encodeURIComponent(document.getElementById('p-first').value)}&last_name=${encodeURIComponent(document.getElementById('p-last').value)}`
+  })
+  .then(r => r.json())
+  .then(d => showToast(d.message, d.success ? 'success' : 'error'))
+  .catch(() => showToast('Update failed', 'error'));
+}
+</script>
+{% endblock %}

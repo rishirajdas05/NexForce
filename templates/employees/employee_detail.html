@@ -1,0 +1,444 @@
+{% extends "employees/base.html" %}
+{% block title %}{{ employee.full_name }} — NexForce EMS{% endblock %}
+{% block page_title %}{{ employee.full_name }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+
+  <!-- Left: Profile Card -->
+  <div style="width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;">
+    <div class="card" style="text-align:center;">
+      <div class="emp-avatar lg" style="margin:0 auto 14px;width:70px;height:70px;font-size:24px;">
+        {{ employee.first_name.0 }}{{ employee.last_name.0 }}
+      </div>
+      <div style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:4px;">{{ employee.full_name }}</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">{{ employee.designation }}</div>
+      <span class="badge {% if employee.employment_status == 'active' %}badge-green{% elif employee.employment_status == 'on_leave' %}badge-yellow{% else %}badge-gray{% endif %}">
+        {{ employee.get_employment_status_display }}
+      </span>
+      <hr class="divider">
+      <div style="display:flex;flex-direction:column;gap:10px;text-align:left;">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text3);">Employee ID</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent3);">{{ employee.employee_id }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text3);">Department</span>
+          <span style="font-size:12px;color:var(--text2);">{{ employee.department.name|default:"—" }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text3);">Type</span>
+          <span style="font-size:12px;color:var(--text2);">{{ employee.get_employment_type_display }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text3);">Joined</span>
+          <span style="font-size:12px;color:var(--text2);">{{ employee.date_joined|date:"M d, Y" }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text3);">Experience</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">{{ employee.years_of_service }} yrs</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text3);">Salary</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">₹{{ employee.salary|floatformat:0 }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text3);">Salary Percentile</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent3);">{{ salary_pct }}%</span>
+        </div>
+        {% if employee.email %}
+        <div style="font-size:11px;color:var(--text3);word-break:break-all;">
+          <i class="fa fa-envelope" style="margin-right:5px;"></i>{{ employee.email }}
+        </div>
+        {% endif %}
+        {% if employee.phone %}
+        <div style="font-size:11px;color:var(--text3);">
+          <i class="fa fa-phone" style="margin-right:5px;"></i>{{ employee.phone }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Skills -->
+    {% if employee.skills %}
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;">Skills</div>
+      {% for skill in employee.skills_list %}
+      <span class="skill-tag">{{ skill }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Attendance Summary -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;">Attendance Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--green);">{{ present_count }}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);">Present</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--red);">{{ absent_count }}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);">Absent</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--yellow);">{{ late_count }}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);">Late</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--orange);">{{ anomaly_count }}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);">Anomalies</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;">
+      <a href="/admin/employees/employee/{{ employee.pk }}/change/" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;">
+        <i class="fa fa-pen"></i> Edit
+      </a>
+      <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center;" onclick="runMLAnalysis()">
+        <i class="fa fa-brain"></i> ML
+      </button>
+    </div>
+  </div>
+
+  <!-- Right: Details -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;">
+
+    <!-- ML Score Row -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+      <div class="card" style="text-align:center;padding:16px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Performance</div>
+        <div style="font-family:var(--font-display);font-size:32px;font-weight:800;color:{% if perf_prediction.score >= 75 %}var(--green){% elif perf_prediction.score >= 50 %}var(--yellow){% else %}var(--red){% endif %};">
+          {{ perf_prediction.score }}
+        </div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text3);">Grade {{ perf_prediction.grade }}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Top {{ perf_prediction.percentile }}% of employees</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Attendance Score</div>
+        <div style="font-family:var(--font-display);font-size:32px;font-weight:800;color:{% if attendance_score >= 75 %}var(--green){% elif attendance_score >= 50 %}var(--yellow){% else %}var(--red){% endif %};">
+          {{ attendance_score }}
+        </div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text3);">/ 100 pts</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">{{ anomalies_detected }} anomalies found</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Attrition Risk</div>
+        <div style="font-family:var(--font-display);font-size:32px;font-weight:800;color:{{ risk_analysis.risk_color }};">
+          {{ risk_analysis.risk_score }}
+        </div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:{{ risk_analysis.risk_color }};">{{ risk_analysis.risk_level }}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">{{ risk_analysis.risk_factors|length }} risk factor{{ risk_analysis.risk_factors|length|pluralize }}</div>
+      </div>
+    </div>
+
+    <!-- AI Insights -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-sparkles" style="color:var(--accent);margin-right:6px;"></i>AI Insights</div>
+        <span class="badge badge-blue">ML Generated</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <!-- Performance insights -->
+        <div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Strengths</div>
+          {% for insight in perf_prediction.insights %}
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--green);">
+            <i class="fa fa-check-circle"></i> {{ insight }}
+          </div>
+          {% empty %}
+          <div style="font-size:12px;color:var(--text3);">No strong signals yet</div>
+          {% endfor %}
+        </div>
+        <!-- Risk factors -->
+        <div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Risk Signals</div>
+          {% for factor in risk_analysis.risk_factors %}
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--orange);">
+            <i class="fa fa-triangle-exclamation"></i> {{ factor }}
+          </div>
+          {% empty %}
+          <div style="font-size:12px;color:var(--green);">No risk signals</div>
+          {% endfor %}
+        </div>
+        <!-- Protective factors -->
+        <div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Protective Factors</div>
+          {% for factor in risk_analysis.protective_factors %}
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--cyan);">
+            <i class="fa fa-shield-check"></i> {{ factor }}
+          </div>
+          {% empty %}
+          <div style="font-size:12px;color:var(--text3);">None identified</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if perf_prediction.recommendations %}
+      <hr class="divider">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Recommendations</div>
+      {% for rec in perf_prediction.recommendations %}
+      <div style="font-size:12.5px;color:var(--accent3);margin-bottom:4px;">
+        <i class="fa fa-arrow-right" style="margin-right:6px;"></i>{{ rec }}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      <!-- Component Scores -->
+      <hr class="divider">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">Score Breakdown</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+        {% for key, val in perf_prediction.component_scores.items %}
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text);">{{ val }}</div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;margin-top:3px;">{{ key|truncatechars:10 }}</div>
+          <div class="progress-bar" style="margin-top:6px;">
+            <div class="progress-fill" style="width:{{ val }}%;background:var(--accent);"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Attendance Records -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Recent Attendance</div>
+        <span class="badge badge-gray">Last 30 records</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Hours</th>
+              <th>Flag</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rec in attendance_records %}
+            <tr>
+              <td style="font-family:var(--font-mono);font-size:11px;">{{ rec.date|date:"M d, Y" }}</td>
+              <td>
+                <span class="badge {% if rec.status == 'present' %}badge-green{% elif rec.status == 'absent' %}badge-red{% elif rec.status == 'late' %}badge-yellow{% elif rec.status == 'work_from_home' %}badge-cyan{% else %}badge-gray{% endif %}">
+                  {{ rec.get_status_display }}
+                </span>
+              </td>
+              <td style="font-family:var(--font-mono);font-size:11px;">{{ rec.check_in|time:"H:i"|default:"—" }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;">{{ rec.check_out|time:"H:i"|default:"—" }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">{{ rec.hours_worked|floatformat:1 }}h</td>
+              <td>
+                {% if rec.is_anomaly %}
+                <span title="{{ rec.anomaly_reason }}">
+                  <span class="anomaly-dot"></span>
+                  <span style="font-size:10px;color:var(--red);">Anomaly</span>
+                </span>
+                {% else %}
+                <span style="font-size:10px;color:var(--text3);">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="color:var(--text3);font-size:13px;padding:20px;">No attendance records.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Performance Reviews -->
+    {% if performance_reviews %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Performance Reviews</div>
+      </div>
+      {% for review in performance_reviews %}
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div>
+            <div style="font-weight:500;font-size:13px;">{{ review.review_period }}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">{{ review.review_date|date:"M d, Y" }}</div>
+          </div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;letter-spacing:-1px;color:{% if review.overall_score >= 4 %}var(--green){% elif review.overall_score >= 3 %}var(--yellow){% else %}var(--red){% endif %};font-variant-numeric:tabular-nums;">
+            {{ review.overall_score }}<span style="font-size:14px;font-weight:500;color:var(--text3);letter-spacing:0;">/5</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:4px;">Quality</div>
+            <div style="font-weight:600;color:var(--text);">{{ review.quality_score }}/5</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:4px;">Productivity</div>
+            <div style="font-weight:600;color:var(--text);">{{ review.productivity_score }}/5</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:4px;">Teamwork</div>
+            <div style="font-weight:600;color:var(--text);">{{ review.teamwork_score }}/5</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:4px;">Communication</div>
+            <div style="font-weight:600;color:var(--text);">{{ review.communication_score }}/5</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:4px;">Initiative</div>
+            <div style="font-weight:600;color:var(--text);">{{ review.initiative_score }}/5</div>
+          </div>
+        </div>
+        {% if review.comments %}
+        <div style="margin-top:10px;font-size:12px;color:var(--text2);border-top:1px solid var(--border);padding-top:10px;">
+          {{ review.comments }}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Leave Requests -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Leave Requests</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Applied</th></tr>
+          </thead>
+          <tbody>
+            {% for leave in leave_requests %}
+            <tr>
+              <td style="font-size:12.5px;">{{ leave.get_leave_type_display }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;">{{ leave.start_date|date:"M d" }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;">{{ leave.end_date|date:"M d, Y" }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">{{ leave.days_count }}d</td>
+              <td>
+                <span class="badge {% if leave.status == 'approved' %}badge-green{% elif leave.status == 'rejected' %}badge-red{% elif leave.status == 'pending' %}badge-yellow{% else %}badge-gray{% endif %}">
+                  {{ leave.status }}
+                </span>
+              </td>
+              <td style="font-family:var(--font-mono);font-size:11px;color:var(--text3);">{{ leave.applied_on|date:"M d" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="color:var(--text3);font-size:13px;padding:20px;">No leave requests.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Payroll -->
+    {% if payroll_records %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Payroll History</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Period</th><th>Basic</th><th>Allowances</th><th>Deductions</th><th>Net</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {% for p in payroll_records %}
+            <tr>
+              <td style="font-family:var(--font-mono);font-size:11px;">{{ p.month }}/{{ p.year }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;">₹{{ p.basic_salary|floatformat:0 }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;color:var(--green);">+₹{{ p.allowances|floatformat:0 }}</td>
+              <td style="font-family:var(--font-mono);font-size:11px;color:var(--red);">-₹{{ p.deductions|floatformat:0 }}</td>
+              <td style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text);">₹{{ p.net_salary|floatformat:0 }}</td>
+              <td>
+                <span class="badge {% if p.status == 'paid' %}badge-green{% elif p.status == 'processed' %}badge-blue{% else %}badge-yellow{% endif %}">
+                  {{ p.status }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- ML Modal -->
+<div class="modal-overlay" id="ml-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa fa-brain" style="color:var(--accent);margin-right:8px;"></i>Live ML Analysis</div>
+      <button class="modal-close" onclick="closeModal('ml-modal')"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div id="ml-result-content">
+      <div style="text-align:center;padding:20px;"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function runMLAnalysis() {
+  openModal('ml-modal');
+  document.getElementById('ml-result-content').innerHTML =
+    `<div style="text-align:center;padding:20px;">
+      <div class="spinner"></div>
+      <p style="margin-top:14px;color:var(--text3);font-size:12px;">Running 10 ML models...</p>
+    </div>`;
+
+  fetch('/api/ml/{{ employee.pk }}/analyze/')
+    .then(r => r.json())
+    .then(data => {
+      const p = data.performance;
+      const r = data.risk;
+      const pc = p.score >= 75 ? 'var(--green)' : p.score >= 50 ? 'var(--yellow)' : 'var(--red)';
+      document.getElementById('ml-result-content').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div style="text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            <div style="font-family:var(--font-display);font-size:30px;font-weight:800;color:${pc};">${p.score}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">PERFORMANCE · ${p.grade}</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            <div style="font-family:var(--font-display);font-size:30px;font-weight:800;color:var(--accent3);">${data.attendance_score.toFixed(1)}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">ATTENDANCE</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            <div style="font-family:var(--font-display);font-size:30px;font-weight:800;color:${r.risk_color};">${r.risk_score}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">RISK · ${r.risk_level}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          ${Object.entries(p.component_scores).map(([k,v]) => `
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;">
+              <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:3px;">${k.replace(/_/g,' ')}</div>
+              <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);">${v}</div>
+              <div class="progress-bar"><div class="progress-fill" style="width:${v}%;background:var(--accent);"></div></div>
+            </div>`).join('')}
+        </div>
+        ${r.risk_factors.length ? `
+          <div style="margin-bottom:10px;">
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;margin-bottom:6px;">Risk Factors</div>
+            ${r.risk_factors.map(f => `<div style="font-size:12px;color:var(--orange);margin-bottom:3px;"><i class="fa fa-triangle-exclamation"></i> ${f}</div>`).join('')}
+          </div>` : ''}
+        ${r.protective_factors && r.protective_factors.length ? `
+          <div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;margin-bottom:6px;">Protective Factors</div>
+            ${r.protective_factors.map(f => `<div style="font-size:12px;color:var(--green);margin-bottom:3px;"><i class="fa fa-shield-check"></i> ${f}</div>`).join('')}
+          </div>` : ''}
+        <div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text2);">
+          Anomalies detected: <strong style="color:${data.anomalies_detected ? 'var(--red)' : 'var(--green)'};">${data.anomalies_detected}</strong>
+          &nbsp;·&nbsp; Scores saved to database.
+        </div>`;
+      showToast('ML analysis complete', 'success');
+    })
+    .catch(() => {
+      document.getElementById('ml-result-content').innerHTML =
+        `<p style="color:var(--red);padding:20px;">Analysis failed. Please try again.</p>`;
+    });
+}
+</script>
+{% endblock %}

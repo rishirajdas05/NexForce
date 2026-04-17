@@ -1,0 +1,235 @@
+{% extends "employees/base.html" %}
+{% block title %}Payroll — NexForce EMS{% endblock %}
+{% block page_title %}Payroll{% endblock %}
+
+{% block content %}
+
+<!-- Summary Stats -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
+  <div class="stat-card purple">
+    <div class="stat-icon"><i class="fa fa-money-bill-wave"></i></div>
+    <div class="stat-value">₹{{ total_payout|floatformat:0 }}</div>
+    <div class="stat-label">Total Payout</div>
+    <div class="stat-change" style="color:var(--text3);">This month</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon"><i class="fa fa-circle-check"></i></div>
+    <div class="stat-value">{{ paid_count }}</div>
+    <div class="stat-label">Paid</div>
+    <div class="stat-change up">Records processed</div>
+  </div>
+  <div class="stat-card yellow">
+    <div class="stat-icon"><i class="fa fa-clock"></i></div>
+    <div class="stat-value">{{ pending_count }}</div>
+    <div class="stat-label">Pending</div>
+    <div class="stat-change" style="color:var(--text3);">Awaiting processing</div>
+  </div>
+  <div class="stat-card cyan">
+    <div class="stat-icon"><i class="fa fa-chart-line"></i></div>
+    <div class="stat-value">₹{{ avg_salary|floatformat:0 }}</div>
+    <div class="stat-label">Avg Net Salary</div>
+    <div class="stat-change" style="color:var(--text3);">Across all employees</div>
+  </div>
+</div>
+
+<div class="grid-2-1" style="margin-bottom:16px;">
+  <!-- Payroll Chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Salary Distribution</div>
+      <div class="card-subtitle">By department</div>
+    </div>
+    <canvas id="salaryChart" height="120"></canvas>
+  </div>
+
+  <!-- Quick Process -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Quick Process</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="form-label">Month</label>
+      <select class="form-control" id="process-month">
+        <option value="1">January</option><option value="2">February</option>
+        <option value="3">March</option><option value="4">April</option>
+        <option value="5">May</option><option value="6">June</option>
+        <option value="7">July</option><option value="8">August</option>
+        <option value="9">September</option><option value="10">October</option>
+        <option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="form-label">Year</label>
+      <input type="number" class="form-control" id="process-year" value="2025" min="2020" max="2030">
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="generatePayroll()">
+      <i class="fa fa-rotate"></i> Generate Payroll
+    </button>
+    <div id="process-result" style="margin-top:10px;font-size:12px;color:var(--text3);text-align:center;"></div>
+  </div>
+</div>
+
+<!-- Payroll Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">All Payroll Records</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="filterPayroll('all')">All</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterPayroll('pending')">Pending</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterPayroll('paid')">Paid</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportPayrollCSV()">
+        <i class="fa fa-download"></i> Export
+      </button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th><th>Month/Year</th><th>Basic</th>
+          <th>Allowances</th><th>Deductions</th><th>Tax</th>
+          <th>Net Salary</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="payroll-tbody">
+        {% for pay in payrolls %}
+        <tr data-status="{{ pay.status }}">
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="emp-avatar sm">{{ pay.employee.first_name.0 }}{{ pay.employee.last_name.0 }}</div>
+              <div class="emp-info">
+                <strong>{{ pay.employee.full_name }}</strong>
+                <span>{{ pay.employee.department.name|default:"—" }}</span>
+              </div>
+            </div>
+          </td>
+          <td style="font-family:var(--font-mono);font-size:11px;">{{ pay.month }}/{{ pay.year }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;">₹{{ pay.basic_salary|floatformat:0 }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--green);">+₹{{ pay.allowances|floatformat:0 }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--red);">-₹{{ pay.deductions|floatformat:0 }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--orange);">-₹{{ pay.tax|floatformat:0 }}</td>
+          <td style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;letter-spacing:-0.5px;color:var(--text);">₹{{ pay.net_salary|floatformat:0 }}</td>
+          <td id="pay-status-{{ pay.pk }}">
+            <span class="badge {% if pay.status == 'paid' %}badge-green{% elif pay.status == 'processed' %}badge-cyan{% else %}badge-yellow{% endif %}">
+              {{ pay.status }}
+            </span>
+          </td>
+          <td>
+            {% if pay.status == 'pending' %}
+            <button class="btn btn-success btn-sm" onclick="markPaid({{ pay.pk }})">
+              <i class="fa fa-check"></i> Mark Paid
+            </button>
+            {% else %}
+            <span style="font-size:11px;color:var(--text3);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text3);">No payroll records yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const salaryData = {{ salary_by_dept|safe }};
+
+new Chart(document.getElementById('salaryChart').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: salaryData.map(d => d.name),
+    datasets: [{
+      label: 'Avg Net Salary (₹)',
+      data: salaryData.map(d => d.avg),
+      backgroundColor: 'rgba(108,99,255,0.6)',
+      borderColor: 'rgba(108,99,255,1)',
+      borderWidth: 1,
+      borderRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor:'#13151c', borderColor:'#1f2430', borderWidth:1, titleColor:'#e8eaf0', bodyColor:'#8891a8',
+        callbacks: { label: ctx => '₹' + ctx.raw.toLocaleString() }
+      }
+    },
+    scales: {
+      x: { grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'#555e72', font:{family:'JetBrains Mono',size:10}} },
+      y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#555e72', font:{family:'JetBrains Mono',size:10}, callback: v => '₹'+v.toLocaleString()} }
+    }
+  }
+});
+
+function filterPayroll(status) {
+  document.querySelectorAll('#payroll-tbody tr').forEach(row => {
+    row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+  });
+}
+
+function markPaid(id) {
+  fetch('/api/payroll/' + id + '/mark-paid/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      document.getElementById('pay-status-' + id).innerHTML = '<span class="badge badge-green">paid</span>';
+      showToast('Marked as paid', 'success');
+    }
+  });
+}
+
+function generatePayroll() {
+  const month = document.getElementById('process-month').value;
+  const year = document.getElementById('process-year').value;
+  const result = document.getElementById('process-result');
+  result.textContent = 'Generating...';
+
+  fetch('/api/payroll/generate/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+    body: JSON.stringify({ month, year })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      showToast(d.message, 'success');
+      result.textContent = d.message;
+      result.style.color = 'var(--green)';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showToast(d.error, 'error');
+      result.textContent = d.error;
+    }
+  });
+}
+
+function exportPayrollCSV() {
+  const rows = [['Employee','Department','Month','Year','Basic','Allowances','Deductions','Tax','Net','Status']];
+  document.querySelectorAll('#payroll-tbody tr').forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 8) {
+      rows.push([
+        cells[0].textContent.trim().split('\n')[0].trim(),
+        cells[0].querySelector('.emp-info span')?.textContent.trim() || '',
+        ...Array.from(cells).slice(1,8).map(c => c.textContent.trim()),
+      ]);
+    }
+  });
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'payroll_export.csv';
+  a.click();
+  showToast('Payroll exported', 'success');
+}
+</script>
+{% endblock %}

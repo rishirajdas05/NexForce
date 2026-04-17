@@ -1,0 +1,128 @@
+{% extends "employees/base.html" %}
+{% block title %}Notifications — NexForce EMS{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+    <div style="font-size:13px;color:var(--text3);">System alerts, ML flags, and activity updates</div>
+    <button class="btn btn-ghost btn-sm" onclick="clearAll()"><i class="fa fa-trash"></i> Clear All</button>
+  </div>
+
+  <!-- Notification filters -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;">
+    <button class="btn btn-primary btn-sm" onclick="filterNotifs('all')" id="nf-all">All</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterNotifs('ml')" id="nf-ml">ML Alerts</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterNotifs('leave')" id="nf-leave">Leave</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterNotifs('attendance')" id="nf-attendance">Attendance</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterNotifs('system')" id="nf-system">System</button>
+  </div>
+
+  <div class="card" id="notif-page-list">
+
+    <!-- System Notifications from DB -->
+    {% for notif in system_notifications %}
+    <div class="notif-item" data-type="{{ notif.type }}" style="display:flex;align-items:flex-start;gap:14px;padding:16px;border-bottom:1px solid var(--border);transition:background 0.12s;">
+      <div style="width:36px;height:36px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+        background:{% if notif.type == 'ml' %}rgba(108,99,255,0.15){% elif notif.type == 'leave' %}rgba(245,158,11,0.15){% elif notif.type == 'attendance' %}rgba(239,68,68,0.15){% else %}rgba(6,182,212,0.15){% endif %};">
+        <i class="fa {% if notif.type == 'ml' %}fa-brain{% elif notif.type == 'leave' %}fa-calendar-minus{% elif notif.type == 'attendance' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"
+          style="font-size:14px;color:{% if notif.type == 'ml' %}var(--accent3){% elif notif.type == 'leave' %}var(--yellow){% elif notif.type == 'attendance' %}var(--red){% else %}var(--cyan){% endif %};"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px;">{{ notif.title }}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;">{{ notif.message }}</div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">{{ notif.created_at|date:"M d, Y H:i" }}</div>
+      </div>
+    </div>
+    {% empty %}
+
+    <!-- Auto-generated notifications from ML and system -->
+    {% for emp in high_risk_employees %}
+    <div class="notif-item" data-type="ml" style="display:flex;align-items:flex-start;gap:14px;padding:16px;border-bottom:1px solid var(--border);">
+      <div style="width:36px;height:36px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.15);">
+        <i class="fa fa-brain" style="font-size:14px;color:var(--red);"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px;">High Attrition Risk — {{ emp.full_name }}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;">
+          ML model flagged this employee with a risk score of <strong style="color:var(--red);">{{ emp.risk_score|floatformat:0 }}</strong>.
+          {% if emp.risk_score >= 70 %}Immediate attention recommended.{% else %}Monitor closely.{% endif %}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="badge badge-red" style="font-size:9px;">{% if emp.risk_score >= 70 %}Critical{% else %}High{% endif %}</span>
+          <a href="{% url 'employee_detail' emp.pk %}" style="font-size:11px;color:var(--accent);">View profile →</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% for leave in pending_leaves %}
+    <div class="notif-item" data-type="leave" style="display:flex;align-items:flex-start;gap:14px;padding:16px;border-bottom:1px solid var(--border);">
+      <div style="width:36px;height:36px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(245,158,11,0.15);">
+        <i class="fa fa-calendar-minus" style="font-size:14px;color:var(--yellow);"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px;">Leave Request Pending — {{ leave.employee.full_name }}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;">
+          {{ leave.get_leave_type_display }} from {{ leave.start_date|date:"M d" }} to {{ leave.end_date|date:"M d, Y" }} ({{ leave.days_count }} days). Awaiting your review.
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="badge badge-yellow" style="font-size:9px;">Pending</span>
+          <a href="{% url 'leave_management' %}" style="font-size:11px;color:var(--accent);">Review →</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% for rec in anomaly_records %}
+    <div class="notif-item" data-type="attendance" style="display:flex;align-items:flex-start;gap:14px;padding:16px;border-bottom:1px solid var(--border);">
+      <div style="width:36px;height:36px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.15);">
+        <i class="fa fa-triangle-exclamation" style="font-size:14px;color:var(--red);"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px;">Attendance Anomaly — {{ rec.employee.full_name }}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;">
+          {{ rec.anomaly_reason|default:"Unusual attendance pattern detected" }} on {{ rec.date|date:"M d, Y" }}.
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="badge badge-red" style="font-size:9px;">Anomaly</span>
+          <a href="{% url 'employee_detail' rec.employee.pk %}" style="font-size:11px;color:var(--accent);">View profile →</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if not high_risk_employees and not pending_leaves and not anomaly_records %}
+    <div style="padding:60px;text-align:center;color:var(--text3);">
+      <i class="fa fa-bell-slash" style="font-size:40px;opacity:0.2;display:block;margin-bottom:16px;"></i>
+      <div style="font-size:15px;margin-bottom:6px;">All caught up</div>
+      <div style="font-size:13px;">No pending notifications</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function filterNotifs(type) {
+  document.querySelectorAll('.notif-item').forEach(item => {
+    item.style.display = (type === 'all' || item.dataset.type === type) ? 'flex' : 'none';
+  });
+  ['all','ml','leave','attendance','system'].forEach(t => {
+    const btn = document.getElementById('nf-' + t);
+    if (btn) {
+      btn.className = t === type ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+    }
+  });
+}
+
+function clearAll() {
+  document.querySelectorAll('.notif-item').forEach(item => item.remove());
+  showToast('Notifications cleared', 'info');
+}
+</script>
+{% endblock %}

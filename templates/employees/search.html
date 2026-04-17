@@ -1,0 +1,108 @@
+{% extends "employees/base.html" %}
+{% block title %}Search — NexForce EMS{% endblock %}
+{% block page_title %}Search{% endblock %}
+
+{% block content %}
+
+<!-- Search Bar -->
+<div style="max-width:600px;margin:0 auto 28px;">
+  <div style="display:flex;gap:10px;">
+    <div class="search-bar" style="flex:1;padding:12px 18px;font-size:15px;">
+      <i class="fa fa-search" style="font-size:14px;"></i>
+      <input type="text" id="main-search" placeholder="Search employees, skills, departments..." 
+        style="font-size:15px;" autofocus oninput="doSearch(this.value)" value="{{ query }}">
+    </div>
+    <button class="btn btn-primary" onclick="doSearch(document.getElementById('main-search').value)">
+      Search
+    </button>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+    <span style="font-size:12px;color:var(--text3);">Try:</span>
+    {% for skill in popular_skills %}
+    <button class="btn btn-ghost btn-sm" onclick="quickSearch('{{ skill }}')" style="font-size:11px;padding:4px 10px;">{{ skill }}</button>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Results -->
+<div id="search-results-page">
+  {% if query %}
+  <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-size:13px;color:var(--text3);" id="results-count">Searching...</div>
+  </div>
+  {% endif %}
+
+  <div id="results-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+    {% if not query %}
+    <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text3);">
+      <i class="fa fa-search" style="font-size:40px;opacity:0.2;display:block;margin-bottom:16px;"></i>
+      <div style="font-size:16px;margin-bottom:8px;">Search your workforce</div>
+      <div style="font-size:13px;">Find employees by name, skill, department, or designation</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let searchTimeout;
+
+function quickSearch(term) {
+  document.getElementById('main-search').value = term;
+  doSearch(term);
+}
+
+function doSearch(query) {
+  clearTimeout(searchTimeout);
+  if (query.length < 1) {
+    document.getElementById('results-grid').innerHTML = '';
+    document.getElementById('results-count') && (document.getElementById('results-count').textContent = '');
+    return;
+  }
+  searchTimeout = setTimeout(() => {
+    fetch('/api/search/?q=' + encodeURIComponent(query))
+    .then(r => r.json())
+    .then(data => {
+      const grid = document.getElementById('results-grid');
+      const count = document.getElementById('results-count');
+      if (count) count.textContent = `${data.results.length} result${data.results.length !== 1 ? 's' : ''} for "${query}"`;
+
+      if (!data.results.length) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text3);">
+          <i class="fa fa-magnifying-glass" style="font-size:32px;opacity:0.2;display:block;margin-bottom:14px;"></i>
+          No employees found for "<strong style="color:var(--text2);">${query}</strong>"
+        </div>`;
+        return;
+      }
+
+      const statusColor = { active: 'badge-green', on_leave: 'badge-yellow', inactive: 'badge-gray', terminated: 'badge-red' };
+      grid.innerHTML = data.results.map(emp => `
+        <a href="/employees/${emp.id}/" style="text-decoration:none;">
+          <div class="card" style="cursor:pointer;transition:all 0.2s;" onmouseenter="this.style.borderColor='var(--border2)'" onmouseleave="this.style.borderColor='var(--border)'">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+              <div class="emp-avatar" style="width:44px;height:44px;font-size:16px;">
+                ${emp.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+              </div>
+              <div style="flex:1;">
+                <div style="font-weight:600;font-size:14px;color:var(--text);">${emp.name}</div>
+                <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);">${emp.employee_id}</div>
+              </div>
+              <span class="badge ${statusColor[emp.employment_status] || 'badge-gray'}" style="font-size:9px;">${emp.employment_status}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">${emp.designation}</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">${emp.department || '—'}</div>
+            ${emp.skills ? `<div style="display:flex;flex-wrap:wrap;gap:3px;">${emp.skills.split(',').slice(0,4).map(s=>`<span class="skill-tag">${s.trim()}</span>`).join('')}</div>` : ''}
+            ${emp.relevance_score ? `<div style="margin-top:8px;font-family:var(--font-mono);font-size:9px;color:var(--text3);">Relevance: ${emp.relevance_score}</div>` : ''}
+          </div>
+        </a>`).join('');
+    });
+  }, 250);
+}
+
+// Auto-search if query in URL
+const urlQuery = '{{ query|escapejs }}';
+if (urlQuery) doSearch(urlQuery);
+</script>
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "employees/base.html" %}
+{% block title %}Reports — NexForce EMS{% endblock %}
+{% block page_title %}Reports{% endblock %}
+
+{% block content %}
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+  <!-- Headcount Report -->
+  <div class="card" style="cursor:pointer;" onclick="generateReport('headcount')">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;background:rgba(108,99,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--accent3);">
+        <i class="fa fa-users"></i>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:14px;">Headcount Report</div>
+        <div style="font-size:11px;color:var(--text3);">By department, type, status</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">Full breakdown of all employees across departments with employment type and status distribution.</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%;justify-content:center;">
+      <i class="fa fa-download"></i> Generate
+    </button>
+  </div>
+
+  <!-- Attendance Report -->
+  <div class="card" style="cursor:pointer;" onclick="generateReport('attendance')">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;background:rgba(16,185,129,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--green);">
+        <i class="fa fa-calendar-check"></i>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:14px;">Attendance Report</div>
+        <div style="font-size:11px;color:var(--text3);">Last 30 days summary</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">Attendance rates, absence counts, late arrivals, and anomalies detected per employee.</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%;justify-content:center;">
+      <i class="fa fa-download"></i> Generate
+    </button>
+  </div>
+
+  <!-- Payroll Report -->
+  <div class="card" style="cursor:pointer;" onclick="generateReport('payroll')">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;background:rgba(245,158,11,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--yellow);">
+        <i class="fa fa-money-bill"></i>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:14px;">Payroll Report</div>
+        <div style="font-size:11px;color:var(--text3);">Salary and compensation</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">Net salaries, total payout, department-wise compensation breakdown with avg and range.</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%;justify-content:center;">
+      <i class="fa fa-download"></i> Generate
+    </button>
+  </div>
+
+  <!-- Performance Report -->
+  <div class="card" style="cursor:pointer;" onclick="generateReport('performance')">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;background:rgba(6,182,212,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--cyan);">
+        <i class="fa fa-star"></i>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:14px;">Performance Report</div>
+        <div style="font-size:11px;color:var(--text3);">ML scores and reviews</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">ML performance scores, grades, review averages and top/bottom performer lists.</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%;justify-content:center;">
+      <i class="fa fa-download"></i> Generate
+    </button>
+  </div>
+
+  <!-- Attrition Report -->
+  <div class="card" style="cursor:pointer;" onclick="generateReport('attrition')">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;background:rgba(239,68,68,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--red);">
+        <i class="fa fa-triangle-exclamation"></i>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:14px;">Attrition Risk Report</div>
+        <div style="font-size:11px;color:var(--text3);">ML flight risk analysis</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">Employees ranked by attrition risk with contributing factors and recommended actions.</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%;justify-content:center;">
+      <i class="fa fa-download"></i> Generate
+    </button>
+  </div>
+
+  <!-- Leave Report -->
+  <div class="card" style="cursor:pointer;" onclick="generateReport('leave')">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;background:rgba(249,115,22,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--orange);">
+        <i class="fa fa-calendar-minus"></i>
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:14px;">Leave Report</div>
+        <div style="font-size:11px;color:var(--text3);">Leave usage and patterns</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">Leave requests by type, department, approval rates, and burn rate analysis per employee.</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%;justify-content:center;">
+      <i class="fa fa-download"></i> Generate
+    </button>
+  </div>
+</div>
+
+<!-- Report Preview -->
+<div class="card" id="report-preview" style="display:none;">
+  <div class="card-header">
+    <div class="card-title" id="report-title">Report</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="downloadReport()"><i class="fa fa-download"></i> Download CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('report-preview').style.display='none'"><i class="fa fa-xmark"></i> Close</button>
+    </div>
+  </div>
+  <div id="report-content" style="overflow-x:auto;"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentReportData = [];
+let currentReportType = '';
+
+function generateReport(type) {
+  currentReportType = type;
+  const preview = document.getElementById('report-preview');
+  const content = document.getElementById('report-content');
+  const title = document.getElementById('report-title');
+
+  content.innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner"></div><p style="margin-top:14px;color:var(--text3);font-size:12px;">Generating report...</p></div>';
+  preview.style.display = 'block';
+  preview.scrollIntoView({ behavior: 'smooth' });
+
+  fetch('/api/reports/' + type + '/')
+  .then(r => r.json())
+  .then(data => {
+    currentReportData = data.rows;
+    title.textContent = data.title;
+
+    if (!data.rows || data.rows.length === 0) {
+      content.innerHTML = '<p style="color:var(--text3);padding:20px;">No data available.</p>';
+      return;
+    }
+
+    const headers = data.headers;
+    content.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr>${headers.map(h => `<th style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);">${h}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${data.rows.map((row, i) => `
+            <tr style="border-bottom:1px solid var(--border);background:${i%2===0?'transparent':'rgba(255,255,255,0.01)'};">
+              ${row.map(cell => `<td style="padding:10px 14px;color:var(--text2);">${cell}</td>`).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="padding:12px 14px;font-size:11px;color:var(--text3);font-family:var(--font-mono);">
+        ${data.rows.length} records · Generated ${new Date().toLocaleString()}
+      </div>`;
+    showToast(data.title + ' generated', 'success');
+  })
+  .catch(() => {
+    content.innerHTML = '<p style="color:var(--red);padding:20px;">Failed to generate report.</p>';
+  });
+}
+
+function downloadReport() {
+  if (!currentReportData.length) return;
+  const csv = currentReportData.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = currentReportType + '_report.csv';
+  a.click();
+  showToast('Report downloaded', 'success');
+}
+</script>
+{% endblock %}

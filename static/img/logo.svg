@@ -1,0 +1,6 @@
+<svg width="160" height="40" viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg">
+  <rect width="36" height="36" x="0" y="2" rx="8" fill="#2563eb"/>
+  <text x="18" y="26" font-family="'Space Grotesk', sans-serif" font-weight="700" font-size="15" fill="white" text-anchor="middle">NX</text>
+  <text x="46" y="22" font-family="'Space Grotesk', sans-serif" font-weight="700" font-size="16" fill="#e2e4ec">NexForce</text>
+  <text x="46" y="34" font-family="'DM Mono', monospace" font-size="8" fill="#7c8196" letter-spacing="1.5">EMS PLATFORM</text>
+</svg>
