@@ -582,7 +582,6 @@ def api_department_analytics(request):
     return JsonResponse({'departments': result})
 
 
-@login_required
 def api_dashboard_stats(request):
     today = date.today()
     stats = {
